@@ -21,12 +21,20 @@ using System;
 using System.ComponentModel;
 using System.Data;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Mangos.MySql;
 
+/// <summary>
+/// Legacy synchronous database abstraction for MySQL connections.
+/// Provides backward compatibility while supporting modern async operations.
+/// Note: Consider migrating to Dapper-based queries in new code.
+/// </summary>
 public class SQL : IDisposable
 {
     private MySqlConnection MySQLConn = null!;
+    private readonly SemaphoreSlim _connectionLock = new(1, 1);
+    private volatile bool _disposedValue;
 
     public enum EMessages
     {
@@ -37,12 +45,6 @@ public class SQL : IDisposable
     public event SQLMessageEventHandler SQLMessage = null!;
 
     public delegate void SQLMessageEventHandler(EMessages MessageID, string OutBuf);
-
-    private string v_SQLHost = "localhost";
-    private string v_SQLPort = "3306";
-    private string v_SQLUser = "";
-    private string v_SQLPass = "";
-    private string v_SQLDBName = "";
 
     public enum DB_Type
     {
@@ -56,493 +58,499 @@ public class SQL : IDisposable
         FatalError = 2
     }
 
-    private DB_Type v_SQLType;
+    private DB_Type _sqlType;
+    private string _sqlHost = "localhost";
+    private string _sqlPort = "3306";
+    private string _sqlUser = string.Empty;
+    private string _sqlPass = string.Empty;
+    private string _sqlDBName = string.Empty;
 
+    /// <summary>Gets or sets the SQL server type.</summary>
     [Description("SQL Server selection.")]
-    public DB_Type SQLTypeServer
-    {
-        get
-        {
-            var SQLTypeServerRet = v_SQLType;
-            return SQLTypeServerRet;
-        }
+    public DB_Type SQLTypeServer { get => _sqlType; set => _sqlType = value; }
 
-        set => v_SQLType = value;
-    }
-
+    /// <summary>Gets or sets the SQL host name.</summary>
     [Description("SQL Host name.")]
-    public string SQLHost
-    {
-        get
-        {
-            var SQLHostRet = v_SQLHost;
-            return SQLHostRet;
-        }
+    public string SQLHost { get => _sqlHost; set => _sqlHost = value ?? "localhost"; }
 
-        set => v_SQLHost = value;
-    }
-
+    /// <summary>Gets or sets the SQL host port.</summary>
     [Description("SQL Host port.")]
-    public string SQLPort
-    {
-        get
-        {
-            var SQLPortRet = v_SQLPort;
-            return SQLPortRet;
-        }
+    public string SQLPort { get => _sqlPort; set => _sqlPort = value ?? "3306"; }
 
-        set => v_SQLPort = value;
-    }
-
+    /// <summary>Gets or sets the SQL user name.</summary>
     [Description("SQL User name.")]
-    public string SQLUser
-    {
-        get
-        {
-            var SQLUserRet = v_SQLUser;
-            return SQLUserRet;
-        }
+    public string SQLUser { get => _sqlUser; set => _sqlUser = value ?? string.Empty; }
 
-        set => v_SQLUser = value;
-    }
-
+    /// <summary>Gets or sets the SQL password.</summary>
     [Description("SQL Password.")]
-    public string SQLPass
-    {
-        get
-        {
-            var SQLPassRet = v_SQLPass;
-            return SQLPassRet;
-        }
+    public string SQLPass { get => _sqlPass; set => _sqlPass = value ?? string.Empty; }
 
-        set => v_SQLPass = value;
-    }
-
+    /// <summary>Gets or sets the SQL database name.</summary>
     [Description("SQL Database name.")]
-    public string SQLDBName
-    {
-        get
-        {
-            var SQLDBNameRet = v_SQLDBName;
-            return SQLDBNameRet;
-        }
+    public string SQLDBName { get => _sqlDBName; set => _sqlDBName = value ?? string.Empty; }
 
-        set => v_SQLDBName = value;
-    }
-
+    /// <summary>Establishes a connection to the SQL server.</summary>
     [Description("Start up the SQL connection.")]
     public int Connect()
     {
         try
         {
-            if (SQLHost.Length < 1)
+            // Validate required settings
+            if (string.IsNullOrWhiteSpace(SQLHost))
             {
-                SQLMessage?.Invoke(EMessages.ID_Error, "You have to set the SQLHost cannot be empty");
+                SQLMessage?.Invoke(EMessages.ID_Error, "SQLHost cannot be empty");
                 return (int)ReturnState.FatalError;
             }
 
-            if (SQLPort.Length < 1)
+            if (string.IsNullOrWhiteSpace(SQLPort))
             {
-                SQLMessage?.Invoke(EMessages.ID_Error, "You have to set the SQLPort cannot be empty");
+                SQLMessage?.Invoke(EMessages.ID_Error, "SQLPort cannot be empty");
                 return (int)ReturnState.FatalError;
             }
 
-            if (SQLUser.Length < 1)
+            if (string.IsNullOrWhiteSpace(SQLUser))
             {
-                SQLMessage?.Invoke(EMessages.ID_Error, "You have to set the SQLUser cannot be empty");
+                SQLMessage?.Invoke(EMessages.ID_Error, "SQLUser cannot be empty");
                 return (int)ReturnState.FatalError;
             }
 
-            if (SQLPass.Length < 1)
+            if (string.IsNullOrWhiteSpace(SQLPass))
             {
-                SQLMessage?.Invoke(EMessages.ID_Error, "You have to set the SQLPassword cannot be empty");
+                SQLMessage?.Invoke(EMessages.ID_Error, "SQLPassword cannot be empty");
                 return (int)ReturnState.FatalError;
             }
 
-            if (SQLDBName.Length < 1)
+            if (string.IsNullOrWhiteSpace(SQLDBName))
             {
-                SQLMessage?.Invoke(EMessages.ID_Error, "You have to set the SQLDatabaseName cannot be empty");
+                SQLMessage?.Invoke(EMessages.ID_Error, "SQLDatabaseName cannot be empty");
                 return (int)ReturnState.FatalError;
             }
 
-            switch (v_SQLType)
+            switch (_sqlType)
             {
                 case DB_Type.MySQL:
-                    {
-                        MySQLConn = new MySqlConnection(string.Format("Server={0};Port={4};User ID={1};Password={2};Database={3};Compress=false;Connection Timeout=1;", SQLHost, SQLUser, SQLPass, SQLDBName, SQLPort));
-                        MySQLConn.Open();
-                        SQLMessage?.Invoke(EMessages.ID_Message, "MySQL Connection Opened Successfully [" + SQLUser + "@" + SQLHost + "]");
-                        break;
-                    }
+                {
+                    MySQLConn = new MySqlConnection(
+                        $"Server={SQLHost};Port={SQLPort};User ID={SQLUser};Password={SQLPass};Database={SQLDBName};Compress=false;Connection Timeout=1;");
+                    MySQLConn.Open();
+                    SQLMessage?.Invoke(EMessages.ID_Message, $"MySQL Connection Opened Successfully [{SQLUser}@{SQLHost}]");
+                    break;
+                }
             }
         }
-        catch (MySqlException e)
+        catch (MySqlException ex)
         {
-            SQLMessage?.Invoke(EMessages.ID_Error, "MySQL Connection Error [" + e.Message + "]");
+            SQLMessage?.Invoke(EMessages.ID_Error, $"MySQL Connection Error [{ex.Message}]");
             return (int)ReturnState.FatalError;
         }
 
         return (int)ReturnState.Success;
     }
 
+    /// <summary>Restarts the SQL connection.</summary>
     [Description("Restart the SQL connection.")]
     public void Restart()
     {
         try
         {
-            switch (v_SQLType)
+            switch (_sqlType)
             {
                 case DB_Type.MySQL:
+                {
+                    MySQLConn?.Close();
+                    MySQLConn?.Dispose();
+                    MySQLConn = new MySqlConnection(
+                        $"Server={SQLHost};Port={SQLPort};User ID={SQLUser};Password={SQLPass};Database={SQLDBName};Compress=false;Connection Timeout=1;");
+                    MySQLConn.Open();
+                    if (MySQLConn.State == ConnectionState.Open)
                     {
-                        MySQLConn.Close();
-                        MySQLConn.Dispose();
-                        MySQLConn = new MySqlConnection(string.Format("Server={0};Port={4};User ID={1};Password={2};Database={3};Compress=false;Connection Timeout=1;", SQLHost, SQLUser, SQLPass, SQLDBName, SQLPort));
-                        MySQLConn.Open();
-                        if (MySQLConn.State == ConnectionState.Open)
-                        {
-                            SQLMessage?.Invoke(EMessages.ID_Message, "MySQL Connection restarted!");
-                        }
-                        else
-                        {
-                            SQLMessage?.Invoke(EMessages.ID_Error, "Unable to restart MySQL connection.");
-                        }
-
-                        break;
+                        SQLMessage?.Invoke(EMessages.ID_Message, "MySQL Connection restarted!");
                     }
+                    else
+                    {
+                        SQLMessage?.Invoke(EMessages.ID_Error, "Unable to restart MySQL connection.");
+                    }
+
+                    break;
+                }
             }
         }
-        catch (MySqlException e)
+        catch (MySqlException ex)
         {
-            SQLMessage?.Invoke(EMessages.ID_Error, "MySQL Connection Error [" + e.Message + "]");
+            SQLMessage?.Invoke(EMessages.ID_Error, $"MySQL Connection Error [{ex.Message}]");
         }
     }
 
-    private bool _disposedValue; // To detect redundant calls
-
-    // IDisposable
-    [Description("Close file and dispose the wdb reader.")]
+    /// <summary>Disposes resources used by this SQL connection.</summary>
+    [Description("Close connection and dispose resources.")]
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposedValue)
         {
-            // TODO: free unmanaged resources (unmanaged objects) and override Finalize() below.
-            // TODO: set large fields to null.
-            switch (v_SQLType)
+            if (disposing)
             {
-                case DB_Type.MySQL:
+                _connectionLock?.Dispose();
+            }
+
+            try
+            {
+                switch (_sqlType)
+                {
+                    case DB_Type.MySQL:
                     {
-                        MySQLConn.Close();
-                        MySQLConn.Dispose();
+                        MySQLConn?.Close();
+                        MySQLConn?.Dispose();
                         break;
                     }
+                }
+            }
+            catch
+            {
+                // Suppress exceptions during cleanup
             }
         }
 
         _disposedValue = true;
     }
 
-    // This code added by Visual Basic to correctly implement the disposable pattern.
+    /// <summary>Disposes the SQL connection and releases resources.</summary>
     public void Dispose()
     {
-        // Do not change this code.  Put cleanup code in Dispose(ByVal disposing As Boolean) above.
         Dispose(true);
         GC.SuppressFinalize(this);
     }
 
-    private string mQuery = "";
-    private DataTable mResult = null!;
+    private string _query = string.Empty;
+    private DataTable _result = null!;
 
+    /// <summary>Executes a SELECT query and stores the result internally.</summary>
     [Description("SQLQuery. EG.: (SELECT * FROM db_accounts WHERE account = 'name';')")]
-    public bool QuerySQL(string SQLQuery)
+    [Obsolete("Legacy method. Consider using async query methods or Dapper-based queries for new code.")]
+    public bool QuerySQL(string query)
     {
-        mQuery = SQLQuery;
-        Query(mQuery, ref mResult);
-        if (mResult.Rows.Count > 0)
-        {
-            // Table gathered
-            return true;
-        }
-
-        // Table dosent exist
-        return false;
+        _query = query ?? throw new ArgumentNullException(nameof(query));
+        var result = new DataTable();
+        Query(_query, ref result);
+        _result = result;
+        return _result.Rows.Count > 0;
     }
 
+    /// <summary>Gets a value from the last query result.</summary>
     [Description("SQLGet. Used after the query to get a section value")]
-    public string GetSQL(string TableSection)
+    [Obsolete("Legacy method. Consider using typed query results for new code.")]
+    public string GetSQL(string field)
     {
-        // Validate that the result table and the requested column exist and contain a usable value.
-        if (mResult is null || mResult.Rows.Count == 0)
+        if (_result is null || _result.Rows.Count == 0)
         {
             return string.Empty;
         }
 
-        if (!mResult.Columns.Contains(TableSection))
+        if (!_result.Columns.Contains(field))
         {
             return string.Empty;
         }
 
-        var value = mResult.Rows[0][TableSection];
-
-        if (value == null || value == DBNull.Value)
-        {
-            return string.Empty;
-        }
-
-        // Convert.ToString handles many types; coalesce to empty string to guarantee non-null return.
-        return Convert.ToString(value) ?? string.Empty;
+        var value = _result.Rows[0][field];
+        return value is null or DBNull ? string.Empty : Convert.ToString(value) ?? string.Empty;
     }
 
-    public DataTable GetDataTableSQL()
+    /// <summary>Gets the last query result as a DataTable.</summary>
+    [Obsolete("Legacy method. Consider using typed query results for new code.")]
+    public DataTable GetDataTableSQL() => _result;
+
+    /// <summary>Executes an INSERT query.</summary>
+    [Description("SQLInsert. EG.: (INSERT INTO db_textpage (pageid, text, nextpageid, wdbversion, checksum) VALUES ('pageid DWORD', 'pagetext STRING', 'nextpage DWORD', 'version DWORD', 'checksum DWORD'))")]
+    [Obsolete("Legacy method. Consider using async insert methods or Dapper for new code.")]
+    public void InsertSQL(string query)
     {
-        return mResult;
+        Insert(query ?? throw new ArgumentNullException(nameof(query)));
     }
 
-    [Description("SQLInsert. EG.: (INSERT INTO db_textpage (pageid, text, nextpageid, wdbversion, checksum) VALUES ('pageid DWORD', 'pagetext STRING', 'nextpage DWORD', 'version DWORD', 'checksum DWORD')")]
-    public void InsertSQL(string SQLInsertionQuery)
-    {
-        Insert(SQLInsertionQuery);
-    }
-
+    /// <summary>Executes an UPDATE query.</summary>
     [Description("SQLUpdate. EG.: (UPDATE db_textpage SET pagetext='pagetextstring' WHERE pageid = 'pageiddword';")]
-    public void UpdateSQL(string SQLUpdateQuery)
+    [Obsolete("Legacy method. Consider using async update methods or Dapper for new code.")]
+    public void UpdateSQL(string query)
     {
-        Update(SQLUpdateQuery);
+        Update(query ?? throw new ArgumentNullException(nameof(query)));
     }
 
-    public int Query(string sqlquery, ref DataTable Result)
+    /// <summary>Executes a SELECT query synchronously.</summary>
+    public int Query(string sqlquery, ref DataTable result)
     {
-        switch (v_SQLType)
-        {
-            case DB_Type.MySQL:
-                {
-                    if (MySQLConn.State != ConnectionState.Open)
-                    {
-                        Restart();
-                        if (MySQLConn.State != ConnectionState.Open)
-                        {
-                            SQLMessage?.Invoke(EMessages.ID_Error, "MySQL Database Request Failed!");
-                            return (int)ReturnState.MinorError;
-                        }
-                    }
+        if (string.IsNullOrWhiteSpace(sqlquery))
+            throw new ArgumentException("Query cannot be empty.", nameof(sqlquery));
 
-                    break;
-                }
-        }
-
-        var ExitCode = (int)ReturnState.Success;
         try
         {
-            switch (v_SQLType)
-            {
-                case DB_Type.MySQL:
-                    {
-                        Monitor.Enter(MySQLConn);
-                        MySqlCommand MySQLCommand = new(sqlquery, MySQLConn);
-                        MySqlDataAdapter MySQLAdapter = new(MySQLCommand);
-                        if (Result is null)
-                        {
-                            Result = new DataTable();
-                        }
-                        else
-                        {
-                            Result.Clear();
-                        }
+            EnsureConnectionOpen();
 
-                        MySQLAdapter.Fill(Result);
-                        break;
-                    }
-            }
-        }
-        catch (MySqlException e)
-        {
-            SQLMessage?.Invoke(EMessages.ID_Error, "Error Reading From MySQL Database " + e.Message);
-            SQLMessage?.Invoke(EMessages.ID_Error, "Query string was: " + sqlquery);
-            ExitCode = (int)ReturnState.FatalError;
-        }
-        finally
-        {
-            switch (v_SQLType)
+            _connectionLock.Wait();
+            try
             {
-                case DB_Type.MySQL:
-                    {
-                        Monitor.Exit(MySQLConn);
-                        break;
-                    }
+                using var command = new MySqlCommand(sqlquery, MySQLConn);
+                using var adapter = new MySqlDataAdapter(command);
+                result ??= new DataTable();
+                result.Clear();
+                adapter.Fill(result);
             }
-        }
+            finally
+            {
+                _connectionLock.Release();
+            }
 
-        return ExitCode;
+            return (int)ReturnState.Success;
+        }
+        catch (MySqlException ex)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Error executing query: {ex.Message}");
+            return (int)ReturnState.FatalError;
+        }
+        catch (Exception ex)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Unexpected error: {ex.Message}");
+            return (int)ReturnState.FatalError;
+        }
     }
 
+    /// <summary>Executes a SELECT query asynchronously.</summary>
+    public async Task<int> QueryAsync(string sqlquery, DataTable result)
+    {
+        if (string.IsNullOrWhiteSpace(sqlquery))
+        {
+            throw new ArgumentException("Query cannot be empty.", nameof(sqlquery));
+        }
+
+        try
+        {
+            await EnsureConnectionOpenAsync();
+            await _connectionLock.WaitAsync();
+            try
+            {
+                using var command = new MySqlCommand(sqlquery, MySQLConn);
+                using var adapter = new MySqlDataAdapter(command);
+                result.Clear();
+                await Task.Run(() => adapter.Fill(result));
+            }
+            finally
+            {
+                _connectionLock.Release();
+            }
+
+            return (int)ReturnState.Success;
+        }
+        catch (MySqlException ex)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Error executing query: {ex.Message}");
+            return (int)ReturnState.FatalError;
+        }
+    }
+
+    /// <summary>Executes an INSERT query with transaction support synchronously.</summary>
     public void Insert(string sqlquery)
     {
-        switch (v_SQLType)
+        if (string.IsNullOrWhiteSpace(sqlquery))
         {
-            case DB_Type.MySQL:
-                {
-                    if (MySQLConn.State != ConnectionState.Open)
-                    {
-                        Restart();
-                        if (MySQLConn.State != ConnectionState.Open)
-                        {
-                            SQLMessage?.Invoke(EMessages.ID_Error, "MySQL Database Request Failed!");
-                            return;
-                        }
-                    }
-
-                    break;
-                }
+            throw new ArgumentException("Query cannot be empty.", nameof(sqlquery));
         }
 
         try
         {
-            switch (v_SQLType)
+            EnsureConnectionOpen();
+            _connectionLock.Wait();
+            try
             {
-                case DB_Type.MySQL:
-                    {
-                        Monitor.Enter(MySQLConn);
-                        var MySQLTransaction = MySQLConn.BeginTransaction();
-                        MySqlCommand MySQLCommand = new(sqlquery, MySQLConn, MySQLTransaction);
-                        MySQLCommand.ExecuteNonQuery();
-                        MySQLTransaction.Commit();
-                        Console.WriteLine("transaction completed");
-                        break;
-                    }
+                using var transaction = MySQLConn.BeginTransaction();
+                using var command = new MySqlCommand(sqlquery, MySQLConn, transaction);
+                command.ExecuteNonQuery();
+                transaction.Commit();
+            }
+            finally
+            {
+                _connectionLock.Release();
             }
         }
-        catch (MySqlException e)
+        catch (MySqlException ex)
         {
-            SQLMessage?.Invoke(EMessages.ID_Error, "Error Reading From MySQL Database " + e.Message);
-            SQLMessage?.Invoke(EMessages.ID_Error, "Insert string was: " + sqlquery);
-        }
-        finally
-        {
-            switch (v_SQLType)
-            {
-                case DB_Type.MySQL:
-                    {
-                        Monitor.Exit(MySQLConn);
-                        break;
-                    }
-            }
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Error executing insert: {ex.Message}");
         }
     }
 
-    // TODO: Apply proper implementation as needed
-    public int TableInsert(string tablename, string dbField1, string dbField1Value, string dbField2, int dbField2Value)
+    /// <summary>Executes an INSERT query with transaction support asynchronously.</summary>
+    public async Task InsertAsync(string sqlquery)
     {
-        MySqlCommand cmd = new("", MySQLConn);
-        cmd.Connection.Open();
-        cmd.CommandText = "insert into `" + tablename + "`(`" + dbField1 + "`,`" + dbField2 + "`) " + "VALUES (@field1value, @field2value)";
-        cmd.Parameters.AddWithValue("@field1value", dbField1Value);
-        cmd.Parameters.AddWithValue("@field2value", dbField2Value);
+        if (string.IsNullOrWhiteSpace(sqlquery))
+        {
+            throw new ArgumentException("Query cannot be empty.", nameof(sqlquery));
+        }
+
         try
         {
-            cmd.ExecuteScalar();
-            cmd.Connection.Close();
+            await EnsureConnectionOpenAsync();
+            await _connectionLock.WaitAsync();
+            try
+            {
+                using var transaction = await MySQLConn.BeginTransactionAsync();
+                using var command = new MySqlCommand(sqlquery, MySQLConn, transaction);
+                await command.ExecuteNonQueryAsync();
+                await transaction.CommitAsync();
+            }
+            finally
+            {
+                _connectionLock.Release();
+            }
+        }
+        catch (MySqlException ex)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Error executing insert: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>Executes a generic INSERT query into a table (legacy method, deprecated).</summary>
+    [Obsolete("Use Insert or InsertAsync methods with parameterized queries instead.")]
+    public int TableInsert(string tablename, string dbField1, string dbField1Value, string dbField2, int dbField2Value)
+    {
+        if (string.IsNullOrWhiteSpace(tablename) || string.IsNullOrWhiteSpace(dbField1) || string.IsNullOrWhiteSpace(dbField2))
+        {
+            throw new ArgumentException("Table name and field names cannot be empty.");
+        }
+
+        try
+        {
+            EnsureConnectionOpen();
+            using var command = new MySqlCommand($"INSERT INTO `{tablename}` (`{dbField1}`, `{dbField2}`) VALUES (@field1value, @field2value)", MySQLConn)
+            {
+                CommandTimeout = 30
+            };
+
+            command.Parameters.AddWithValue("@field1value", dbField1Value);
+            command.Parameters.AddWithValue("@field2value", dbField2Value);
+            command.ExecuteNonQuery();
             return 0;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            cmd.Connection.Close();
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Table insert error: {ex.Message}");
             return -1;
         }
     }
 
-    // TODO: Apply proper implementation as needed
+    /// <summary>Executes a generic SELECT query from a table (legacy method, deprecated).</summary>
+    [Obsolete("Use Query or QueryAsync methods with parameterized queries instead.")]
     public DataSet TableSelect(string tablename, string returnfields, string dbField1, string dbField1Value)
     {
-        MySqlCommand cmd = new("", MySQLConn);
-        DataSet myDataset = new();
+        var dataset = new DataSet();
+        if (string.IsNullOrWhiteSpace(tablename) || string.IsNullOrWhiteSpace(returnfields) || string.IsNullOrWhiteSpace(dbField1))
+        {
+            return dataset;
+        }
+
         try
         {
-            // Ensure connection is opened before executing the adapter fill.
-            if (cmd.Connection.State != ConnectionState.Open)
+            EnsureConnectionOpen();
+            using var command = new MySqlCommand($"SELECT {returnfields} FROM `{tablename}` WHERE `{dbField1}` = @dbField1value;", MySQLConn)
             {
-                cmd.Connection.Open();
-            }
+                CommandTimeout = 30
+            };
 
-            // Use parameter placeholder without extra quotes so parameterization is effective.
-            cmd.CommandText = "SELECT " + returnfields + " FROM `" + tablename + "` WHERE `" + dbField1 + "` = @dbField1value;";
-            cmd.Parameters.AddWithValue("@dbField1value", dbField1Value);
-
-            MySqlDataAdapter adapter = new();
-            adapter.SelectCommand = cmd;
-            adapter.Fill(myDataset);
-
-            return myDataset;
+            command.Parameters.AddWithValue("@dbField1value", dbField1Value);
+            using var adapter = new MySqlDataAdapter(command);
+            adapter.Fill(dataset);
+            return dataset;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Return an empty DataSet instead of null to avoid possible null reference returns.
-            return new DataSet();
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Table select error: {ex.Message}");
+            return dataset;
         }
-        finally
+    }
+
+    /// <summary>Executes an UPDATE/DELETE query synchronously.</summary>
+    public void Update(string sqlquery)
+    {
+        if (string.IsNullOrWhiteSpace(sqlquery))
         {
+            throw new ArgumentException("Query cannot be empty.", nameof(sqlquery));
+        }
+
+        try
+        {
+            EnsureConnectionOpen();
+            _connectionLock.Wait();
             try
             {
-                if (cmd.Connection?.State == ConnectionState.Open)
-                {
-                    cmd.Connection.Close();
-                }
+                using var command = new MySqlCommand(sqlquery, MySQLConn);
+                using var adapter = new MySqlDataAdapter(command);
+                var result = new DataTable();
+                adapter.Fill(result);
             }
-            catch
+            finally
             {
-                // Suppress any exceptions thrown while closing the connection to not mask original errors.
+                _connectionLock.Release();
+            }
+        }
+        catch (MySqlException ex)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Error executing update: {ex.Message}");
+        }
+    }
+
+    /// <summary>Executes an UPDATE/DELETE query asynchronously.</summary>
+    public async Task UpdateAsync(string sqlquery)
+    {
+        if (string.IsNullOrWhiteSpace(sqlquery))
+        {
+            throw new ArgumentException("Query cannot be empty.", nameof(sqlquery));
+        }
+
+        try
+        {
+            await EnsureConnectionOpenAsync();
+            await _connectionLock.WaitAsync();
+            try
+            {
+                using var command = new MySqlCommand(sqlquery, MySQLConn);
+                using var adapter = new MySqlDataAdapter(command);
+                var result = new DataTable();
+                await Task.Run(() => adapter.Fill(result));
+            }
+            finally
+            {
+                _connectionLock.Release();
+            }
+        }
+        catch (MySqlException ex)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Error executing update: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>Ensures the database connection is open, restarting if necessary.</summary>
+    private void EnsureConnectionOpen()
+    {
+        if (MySQLConn?.State != ConnectionState.Open)
+        {
+            Restart();
+            if (MySQLConn?.State != ConnectionState.Open)
+            {
+                throw new InvalidOperationException("Failed to establish database connection.");
             }
         }
     }
 
-    public void Update(string sqlquery)
+    /// <summary>Ensures the database connection is open asynchronously.</summary>
+    private async Task EnsureConnectionOpenAsync()
     {
-        switch (v_SQLType)
+        if (MySQLConn?.State != ConnectionState.Open)
         {
-            case DB_Type.MySQL:
-                {
-                    if (MySQLConn.State != ConnectionState.Open)
-                    {
-                        Restart();
-                        if (MySQLConn.State != ConnectionState.Open)
-                        {
-                            SQLMessage?.Invoke(EMessages.ID_Error, "MySQL Database Request Failed!");
-                            return;
-                        }
-                    }
-
-                    break;
-                }
-        }
-
-        try
-        {
-            switch (v_SQLType)
+            Restart();
+            if (MySQLConn?.State != ConnectionState.Open)
             {
-                case DB_Type.MySQL:
-                    {
-                        Monitor.Enter(MySQLConn);
-                        MySqlCommand MySQLCommand = new(sqlquery, MySQLConn);
-                        MySqlDataAdapter MySQLAdapter = new(MySQLCommand);
-                        DataTable result = new();
-                        MySQLAdapter.Fill(result);
-                        break;
-                    }
+                throw new InvalidOperationException("Failed to establish database connection.");
             }
         }
-        catch (MySqlException e)
-        {
-            SQLMessage?.Invoke(EMessages.ID_Error, "Error Reading From MySQL Database " + e.Message);
-            SQLMessage?.Invoke(EMessages.ID_Error, "Update string was: " + sqlquery);
-        }
-        finally
-        {
-            switch (v_SQLType)
-            {
-                case DB_Type.MySQL:
-                    {
-                        Monitor.Exit(MySQLConn);
-                        break;
-                    }
-            }
-        }
+
+        await Task.CompletedTask;
     }
 }
