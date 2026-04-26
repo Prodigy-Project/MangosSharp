@@ -32,11 +32,11 @@ public static class SqlExtensions
     // Throws ArgumentNullException when row is null or column value is null.
     public static T As<T>(this DataRow row, int column)
     {
-        return row switch
-        {
-            null => throw new ArgumentNullException(nameof(row), "DataRow cannot be null."), _ => row[column] is null or DBNull
-                ? throw new InvalidOperationException($"Column at index {column} contains null value.") : (T)Convert.ChangeType(row[column], typeof(T))
-        };
+        return row is null
+            ? throw new ArgumentNullException(nameof(row), "DataRow cannot be null.")
+            : row[column] is null or DBNull
+                ? throw new InvalidOperationException($"Column at index {column} contains null value.")
+                : (T)Convert.ChangeType(row[column], typeof(T));
     }
 
     // Converts a DataRow column value to the specified type.

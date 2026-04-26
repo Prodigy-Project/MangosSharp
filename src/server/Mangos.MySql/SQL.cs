@@ -141,6 +141,10 @@ public class SQL : IDisposable
                     SQLMessage?.Invoke(EMessages.ID_Message, $"MySQL Connection Opened Successfully [{SQLUser}@{SQLHost}]");
                     break;
                 }
+
+                default:
+                    SQLMessage?.Invoke(EMessages.ID_Error, "Unsupported SQL server type.");
+                    return (int)ReturnState.FatalError;
             }
         }
         catch (MySqlException ex)
@@ -232,7 +236,6 @@ public class SQL : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private string _query = string.Empty;
     private DataTable _result = null!;
 
     // Executes a SELECT query and stores the result internally.
@@ -240,9 +243,9 @@ public class SQL : IDisposable
     [Obsolete("Legacy method. Consider using async query methods or Dapper-based queries for new code.")]
     public bool QuerySQL(string query)
     {
-        _query = query ?? throw new ArgumentNullException(nameof(query));
+        var queryText = query ?? throw new ArgumentNullException(nameof(query));
         var result = new DataTable();
-        Query(_query, ref result);
+        Query(queryText, ref result);
         _result = result;
         return _result.Rows.Count > 0;
     }
@@ -290,7 +293,9 @@ public class SQL : IDisposable
     public int Query(string sqlquery, ref DataTable result)
     {
         if (string.IsNullOrWhiteSpace(sqlquery))
+        {
             throw new ArgumentException("Query cannot be empty.", nameof(sqlquery));
+        }
 
         try
         {
