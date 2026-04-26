@@ -21,19 +21,15 @@ using System.Data;
 
 namespace Mangos.MySql;
 
-/// <summary>
-/// Extension methods for converting DataRow values to typed values with proper null handling.
-/// </summary>
+// Extension methods for converting DataRow values to typed values with proper null handling.
 public static class SqlExtensions
 {
-    /// <summary>
-    /// Converts a DataRow column value to the specified type.
-    /// </summary>
-    /// <typeparam name="T">The target type.</typeparam>
-    /// <param name="row">The DataRow to read from.</param>
-    /// <param name="column">The column index.</param>
-    /// <returns>The converted value.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when row is null or column value is null.</exception>
+    // Converts a DataRow column value to the specified type.
+    // T: The target type.
+    // row: The DataRow to read from.
+    // column: The column index.
+    // Returns: The converted value.
+    // Throws ArgumentNullException when row is null or column value is null.
     public static T As<T>(this DataRow row, int column)
     {
         return row switch
@@ -43,14 +39,12 @@ public static class SqlExtensions
         };
     }
 
-    /// <summary>
-    /// Converts a DataRow column value to the specified type.
-    /// </summary>
-    /// <typeparam name="T">The target type.</typeparam>
-    /// <param name="row">The DataRow to read from.</param>
-    /// <param name="field">The column name.</param>
-    /// <returns>The converted value.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when row is null or field value is null.</exception>
+    // Converts a DataRow column value to the specified type.
+    // T: The target type.
+    // row: The DataRow to read from.
+    // field: The column name.
+    // Returns: The converted value.
+    // Throws ArgumentNullException when row is null or field value is null.
     public static T As<T>(this DataRow row, string field)
     {
         if (row is null)
@@ -67,15 +61,13 @@ public static class SqlExtensions
             ? throw new InvalidOperationException($"Column '{field}' contains null value.") : (T)Convert.ChangeType(row[field], typeof(T));
     }
 
-    /// <summary>
-    /// Converts a DataRow column value from one type to another.
-    /// </summary>
-    /// <typeparam name="T1">The intermediate type.</typeparam>
-    /// <typeparam name="T2">The target type.</typeparam>
-    /// <param name="row">The DataRow to read from.</param>
-    /// <param name="field">The column name.</param>
-    /// <returns>The converted value.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when row is null or field value is null.</exception>
+    // Converts a DataRow column value from one type to another.
+    // T1: The intermediate type.
+    // T2: The target type.
+    // row: The DataRow to read from.
+    // field: The column name.
+    // Returns: The converted value.
+    // Throws ArgumentNullException when row is null or field value is null.
     public static T2 As<T1, T2>(this DataRow row, string field)
     {
         if (row is null)

@@ -25,18 +25,14 @@ using System.Threading.Tasks;
 
 namespace Mangos.MySql;
 
-/// <summary>
-/// Checks if the database schema version matches the required core version.
-/// Provides both synchronous and asynchronous version checking.
-/// </summary>
+// Checks if the database schema version matches the required core version.
+// Provides both synchronous and asynchronous version checking.
 public class DbVersionChecker
 {
     private readonly MangosGlobalConstants _globalConstants;
     private readonly IMangosLogger _logger;
 
-    /// <summary>
-    /// Represents database version information.
-    /// </summary>
+    // Represents database version information.
     private record DbVersionInfo(int Version, int Structure, int Content);
 
     public DbVersionChecker(IMangosLogger logger, MangosGlobalConstants mangosGlobalConstants)
@@ -45,12 +41,10 @@ public class DbVersionChecker
         _globalConstants = mangosGlobalConstants ?? throw new ArgumentNullException(nameof(mangosGlobalConstants));
     }
 
-    /// <summary>
-    /// Checks if the database version matches the required core version.
-    /// </summary>
-    /// <param name="database">The database to check.</param>
-    /// <param name="serverDb">The type of database being checked.</param>
-    /// <returns>True if version is compatible or content mismatch (warnings), false if version mismatch (fatal).</returns>
+    // Checks if the database version matches the required core version.
+    // database: The database to check.
+    // serverDb: The type of database being checked.
+    // Returns: True if version is compatible or content mismatch (warnings), false if version mismatch (fatal).
     public bool CheckRequiredDbVersion(SQL database, ServerDb serverDb)
     {
         var result = new DataTable();
@@ -78,9 +72,7 @@ public class DbVersionChecker
         return ValidateVersion(database.SQLDBName, dbVersion, expectedVersion);
     }
 
-    /// <summary>
-    /// Checks if the database version matches asynchronously.
-    /// </summary>
+    // Checks if the database version matches asynchronously.
     public async Task<bool> CheckRequiredDbVersionAsync(SQL database, ServerDb serverDb)
     {
         var result = new DataTable();
@@ -108,9 +100,7 @@ public class DbVersionChecker
         return ValidateVersion(database.SQLDBName, dbVersion, expectedVersion);
     }
 
-    /// <summary>
-    /// Gets the expected version for the given server database type.
-    /// </summary>
+    // Gets the expected version for the given server database type.
     private DbVersionInfo? GetExpectedVersion(ServerDb serverDb)
     {
         return serverDb switch
@@ -134,18 +124,14 @@ public class DbVersionChecker
         };
     }
 
-    /// <summary>
-    /// Extracts version information from a query result row.
-    /// </summary>
+    // Extracts version information from a query result row.
     private static DbVersionInfo ExtractVersionInfo(DataTable result)
     {
         var row = result.Rows[0];
         return new DbVersionInfo(row.As<int>("version"), row.As<int>("structure"), row.As<int>("content"));
     }
 
-    /// <summary>
-    /// Validates that the database version matches the expected version.
-    /// </summary>
+    // Validates that the database version matches the expected version.
     private bool ValidateVersion(string dbName, DbVersionInfo actual, DbVersionInfo expected)
     {
         // Perfect match
@@ -183,9 +169,7 @@ public class DbVersionChecker
         return false;
     }
 
-    /// <summary>
-    /// Logs when the database version check fails.
-    /// </summary>
+    // Logs when the database version check fails.
     private void LogDatabaseCheckFailure(string dbName, string reason)
     {
         _logger.Error("--------------------------------------------------------------");
@@ -195,9 +179,7 @@ public class DbVersionChecker
         _logger.Error("--------------------------------------------------------------");
     }
 
-    /// <summary>
-    /// Logs when the db_version table is missing.
-    /// </summary>
+    // Logs when the db_version table is missing.
     private void LogMissingVersionTable(string dbName, DbVersionInfo expected)
     {
         _logger.Error("--------------------------------------------------------------");

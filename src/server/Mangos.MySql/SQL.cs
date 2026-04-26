@@ -16,7 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using System;
 using System.ComponentModel;
 using System.Data;
@@ -25,11 +25,9 @@ using System.Threading.Tasks;
 
 namespace Mangos.MySql;
 
-/// <summary>
-/// Legacy synchronous database abstraction for MySQL connections.
-/// Provides backward compatibility while supporting modern async operations.
-/// Note: Consider migrating to Dapper-based queries in new code.
-/// </summary>
+// Legacy synchronous database abstraction for MySQL connections.
+// Provides backward compatibility while supporting modern async operations.
+// Note: Consider migrating to Dapper-based queries in new code.
 public class SQL : IDisposable
 {
     private MySqlConnection MySQLConn = null!;
@@ -65,31 +63,31 @@ public class SQL : IDisposable
     private string _sqlPass = string.Empty;
     private string _sqlDBName = string.Empty;
 
-    /// <summary>Gets or sets the SQL server type.</summary>
+    // Gets or sets the SQL server type.
     [Description("SQL Server selection.")]
     public DB_Type SQLTypeServer { get => _sqlType; set => _sqlType = value; }
 
-    /// <summary>Gets or sets the SQL host name.</summary>
+    // Gets or sets the SQL host name.
     [Description("SQL Host name.")]
     public string SQLHost { get => _sqlHost; set => _sqlHost = value ?? "localhost"; }
 
-    /// <summary>Gets or sets the SQL host port.</summary>
+    // Gets or sets the SQL host port.
     [Description("SQL Host port.")]
     public string SQLPort { get => _sqlPort; set => _sqlPort = value ?? "3306"; }
 
-    /// <summary>Gets or sets the SQL user name.</summary>
+    // Gets or sets the SQL user name.
     [Description("SQL User name.")]
     public string SQLUser { get => _sqlUser; set => _sqlUser = value ?? string.Empty; }
 
-    /// <summary>Gets or sets the SQL password.</summary>
+    // Gets or sets the SQL password.
     [Description("SQL Password.")]
     public string SQLPass { get => _sqlPass; set => _sqlPass = value ?? string.Empty; }
 
-    /// <summary>Gets or sets the SQL database name.</summary>
+    // Gets or sets the SQL database name.
     [Description("SQL Database name.")]
     public string SQLDBName { get => _sqlDBName; set => _sqlDBName = value ?? string.Empty; }
 
-    /// <summary>Establishes a connection to the SQL server.</summary>
+    // Establishes a connection to the SQL server.
     [Description("Start up the SQL connection.")]
     public int Connect()
     {
@@ -133,6 +131,13 @@ public class SQL : IDisposable
                     MySQLConn = new MySqlConnection(
                         $"Server={SQLHost};Port={SQLPort};User ID={SQLUser};Password={SQLPass};Database={SQLDBName};Compress=false;Connection Timeout=1;");
                     MySQLConn.Open();
+                    
+                    // Test the connection
+                    if (!TestConnection())
+                    {
+                        return (int)ReturnState.FatalError;
+                    }
+                    
                     SQLMessage?.Invoke(EMessages.ID_Message, $"MySQL Connection Opened Successfully [{SQLUser}@{SQLHost}]");
                     break;
                 }
@@ -147,7 +152,7 @@ public class SQL : IDisposable
         return (int)ReturnState.Success;
     }
 
-    /// <summary>Restarts the SQL connection.</summary>
+    // Restarts the SQL connection.
     [Description("Restart the SQL connection.")]
     public void Restart()
     {
@@ -164,6 +169,13 @@ public class SQL : IDisposable
                     MySQLConn.Open();
                     if (MySQLConn.State == ConnectionState.Open)
                     {
+                        // Test the restarted connection
+                        if (!TestConnection())
+                        {
+                            SQLMessage?.Invoke(EMessages.ID_Error, "MySQL Connection restart failed: test failed");
+                            return;
+                        }
+                        
                         SQLMessage?.Invoke(EMessages.ID_Message, "MySQL Connection restarted!");
                     }
                     else
@@ -181,7 +193,7 @@ public class SQL : IDisposable
         }
     }
 
-    /// <summary>Disposes resources used by this SQL connection.</summary>
+    // Disposes resources used by this SQL connection.
     [Description("Close connection and dispose resources.")]
     protected virtual void Dispose(bool disposing)
     {
@@ -213,7 +225,7 @@ public class SQL : IDisposable
         _disposedValue = true;
     }
 
-    /// <summary>Disposes the SQL connection and releases resources.</summary>
+    // Disposes the SQL connection and releases resources.
     public void Dispose()
     {
         Dispose(true);
@@ -223,7 +235,7 @@ public class SQL : IDisposable
     private string _query = string.Empty;
     private DataTable _result = null!;
 
-    /// <summary>Executes a SELECT query and stores the result internally.</summary>
+    // Executes a SELECT query and stores the result internally.
     [Description("SQLQuery. EG.: (SELECT * FROM db_accounts WHERE account = 'name';')")]
     [Obsolete("Legacy method. Consider using async query methods or Dapper-based queries for new code.")]
     public bool QuerySQL(string query)
@@ -235,7 +247,7 @@ public class SQL : IDisposable
         return _result.Rows.Count > 0;
     }
 
-    /// <summary>Gets a value from the last query result.</summary>
+    // Gets a value from the last query result.
     [Description("SQLGet. Used after the query to get a section value")]
     [Obsolete("Legacy method. Consider using typed query results for new code.")]
     public string GetSQL(string field)
@@ -254,11 +266,11 @@ public class SQL : IDisposable
         return value is null or DBNull ? string.Empty : Convert.ToString(value) ?? string.Empty;
     }
 
-    /// <summary>Gets the last query result as a DataTable.</summary>
+    // Gets the last query result as a DataTable.
     [Obsolete("Legacy method. Consider using typed query results for new code.")]
     public DataTable GetDataTableSQL() => _result;
 
-    /// <summary>Executes an INSERT query.</summary>
+    // Executes an INSERT query.
     [Description("SQLInsert. EG.: (INSERT INTO db_textpage (pageid, text, nextpageid, wdbversion, checksum) VALUES ('pageid DWORD', 'pagetext STRING', 'nextpage DWORD', 'version DWORD', 'checksum DWORD'))")]
     [Obsolete("Legacy method. Consider using async insert methods or Dapper for new code.")]
     public void InsertSQL(string query)
@@ -266,7 +278,7 @@ public class SQL : IDisposable
         Insert(query ?? throw new ArgumentNullException(nameof(query)));
     }
 
-    /// <summary>Executes an UPDATE query.</summary>
+    // Executes an UPDATE query.
     [Description("SQLUpdate. EG.: (UPDATE db_textpage SET pagetext='pagetextstring' WHERE pageid = 'pageiddword';")]
     [Obsolete("Legacy method. Consider using async update methods or Dapper for new code.")]
     public void UpdateSQL(string query)
@@ -274,7 +286,7 @@ public class SQL : IDisposable
         Update(query ?? throw new ArgumentNullException(nameof(query)));
     }
 
-    /// <summary>Executes a SELECT query synchronously.</summary>
+    // Executes a SELECT query synchronously.
     public int Query(string sqlquery, ref DataTable result)
     {
         if (string.IsNullOrWhiteSpace(sqlquery))
@@ -312,7 +324,7 @@ public class SQL : IDisposable
         }
     }
 
-    /// <summary>Executes a SELECT query asynchronously.</summary>
+    // Executes a SELECT query asynchronously.
     public async Task<int> QueryAsync(string sqlquery, DataTable result)
     {
         if (string.IsNullOrWhiteSpace(sqlquery))
@@ -345,7 +357,7 @@ public class SQL : IDisposable
         }
     }
 
-    /// <summary>Executes an INSERT query with transaction support synchronously.</summary>
+    // Executes an INSERT query with transaction support synchronously.
     public void Insert(string sqlquery)
     {
         if (string.IsNullOrWhiteSpace(sqlquery))
@@ -375,7 +387,7 @@ public class SQL : IDisposable
         }
     }
 
-    /// <summary>Executes an INSERT query with transaction support asynchronously.</summary>
+    // Executes an INSERT query with transaction support asynchronously.
     public async Task InsertAsync(string sqlquery)
     {
         if (string.IsNullOrWhiteSpace(sqlquery))
@@ -406,7 +418,7 @@ public class SQL : IDisposable
         }
     }
 
-    /// <summary>Executes a generic INSERT query into a table (legacy method, deprecated).</summary>
+    // Executes a generic INSERT query into a table (legacy method, deprecated).
     [Obsolete("Use Insert or InsertAsync methods with parameterized queries instead.")]
     public int TableInsert(string tablename, string dbField1, string dbField1Value, string dbField2, int dbField2Value)
     {
@@ -435,7 +447,7 @@ public class SQL : IDisposable
         }
     }
 
-    /// <summary>Executes a generic SELECT query from a table (legacy method, deprecated).</summary>
+    // Executes a generic SELECT query from a table (legacy method, deprecated).
     [Obsolete("Use Query or QueryAsync methods with parameterized queries instead.")]
     public DataSet TableSelect(string tablename, string returnfields, string dbField1, string dbField1Value)
     {
@@ -465,7 +477,7 @@ public class SQL : IDisposable
         }
     }
 
-    /// <summary>Executes an UPDATE/DELETE query synchronously.</summary>
+    // Executes an UPDATE/DELETE query synchronously.
     public void Update(string sqlquery)
     {
         if (string.IsNullOrWhiteSpace(sqlquery))
@@ -495,7 +507,7 @@ public class SQL : IDisposable
         }
     }
 
-    /// <summary>Executes an UPDATE/DELETE query asynchronously.</summary>
+    // Executes an UPDATE/DELETE query asynchronously.
     public async Task UpdateAsync(string sqlquery)
     {
         if (string.IsNullOrWhiteSpace(sqlquery))
@@ -526,7 +538,7 @@ public class SQL : IDisposable
         }
     }
 
-    /// <summary>Ensures the database connection is open, restarting if necessary.</summary>
+    // Ensures the database connection is open, restarting if necessary.
     private void EnsureConnectionOpen()
     {
         if (MySQLConn?.State != ConnectionState.Open)
@@ -539,7 +551,7 @@ public class SQL : IDisposable
         }
     }
 
-    /// <summary>Ensures the database connection is open asynchronously.</summary>
+    // Ensures the database connection is open asynchronously.
     private async Task EnsureConnectionOpenAsync()
     {
         if (MySQLConn?.State != ConnectionState.Open)
@@ -552,5 +564,34 @@ public class SQL : IDisposable
         }
 
         await Task.CompletedTask;
+    }
+
+    // Tests the database connection with a simple query.
+    private bool TestConnection()
+    {
+        try
+        {
+            if (MySQLConn == null || MySQLConn.State != ConnectionState.Open)
+            {
+                SQLMessage?.Invoke(EMessages.ID_Error, "Cannot test connection: connection is not open");
+                return false;
+            }
+
+            using var command = new MySqlCommand("SELECT 1", MySQLConn);
+            var result = command.ExecuteScalar();
+            if (result == null || Convert.ToInt32(result) != 1)
+            {
+                SQLMessage?.Invoke(EMessages.ID_Error, "Connection test failed: unexpected result from test query");
+                return false;
+            }
+            
+            SQLMessage?.Invoke(EMessages.ID_Message, "Database connection test passed");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Database connection test failed: {ex.Message}");
+            return false;
+        }
     }
 }
