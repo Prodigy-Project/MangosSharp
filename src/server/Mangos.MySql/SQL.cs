@@ -189,6 +189,10 @@ public class SQL : IDisposable
 
                     break;
                 }
+
+                default:
+                    SQLMessage?.Invoke(EMessages.ID_Error, "Unsupported SQL server type.");
+                    break;
             }
         }
         catch (MySqlException ex)
@@ -289,7 +293,48 @@ public class SQL : IDisposable
         Update(query ?? throw new ArgumentNullException(nameof(query)));
     }
 
+    // Executes a SELECT query synchronously and returns the result.
+    public (int status, DataTable result) QueryResult(string sqlquery)
+    {
+        if (string.IsNullOrWhiteSpace(sqlquery))
+        {
+            throw new ArgumentException("Query cannot be empty.", nameof(sqlquery));
+        }
+
+        var result = new DataTable();
+        
+        try
+        {
+            EnsureConnectionOpen();
+
+            _connectionLock.Wait();
+            try
+            {
+                using var command = new MySqlCommand(sqlquery, MySQLConn);
+                using var adapter = new MySqlDataAdapter(command);
+                adapter.Fill(result);
+            }
+            finally
+            {
+                _connectionLock.Release();
+            }
+
+            return ((int)ReturnState.Success, result);
+        }
+        catch (MySqlException ex)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Error executing query: {ex.Message}");
+            return ((int)ReturnState.FatalError, result);
+        }
+        catch (Exception ex)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Unexpected error: {ex.Message}");
+            return ((int)ReturnState.FatalError, result);
+        }
+    }
+
     // Executes a SELECT query synchronously.
+    [Obsolete("Legacy method. Use QueryResult instead to avoid ref parameters.")]
     public int Query(string sqlquery, ref DataTable result)
     {
         if (string.IsNullOrWhiteSpace(sqlquery))
@@ -329,7 +374,42 @@ public class SQL : IDisposable
         }
     }
 
+    // Executes a SELECT query asynchronously and returns the result.
+    public async Task<(int status, DataTable result)> QueryResultAsync(string sqlquery)
+    {
+        if (string.IsNullOrWhiteSpace(sqlquery))
+        {
+            throw new ArgumentException("Query cannot be empty.", nameof(sqlquery));
+        }
+
+        var result = new DataTable();
+
+        try
+        {
+            await EnsureConnectionOpenAsync();
+            await _connectionLock.WaitAsync();
+            try
+            {
+                using var command = new MySqlCommand(sqlquery, MySQLConn);
+                using var adapter = new MySqlDataAdapter(command);
+                await Task.Run(() => adapter.Fill(result));
+            }
+            finally
+            {
+                _connectionLock.Release();
+            }
+
+            return ((int)ReturnState.Success, result);
+        }
+        catch (MySqlException ex)
+        {
+            SQLMessage?.Invoke(EMessages.ID_Error, $"Error executing query: {ex.Message}");
+            return ((int)ReturnState.FatalError, result);
+        }
+    }
+
     // Executes a SELECT query asynchronously.
+    [Obsolete("Legacy method. Use QueryResultAsync instead to avoid parameter mutation.")]
     public async Task<int> QueryAsync(string sqlquery, DataTable result)
     {
         if (string.IsNullOrWhiteSpace(sqlquery))

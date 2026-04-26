@@ -47,8 +47,7 @@ public class DbVersionChecker
     // Returns: True if version is compatible or content mismatch (warnings), false if version mismatch (fatal).
     public bool CheckRequiredDbVersion(SQL database, ServerDb serverDb)
     {
-        var result = new DataTable();
-        var queryCode = database.Query("SELECT `version`,`structure`,`content` FROM db_version ORDER BY version DESC, structure DESC, content DESC LIMIT 0,1", ref result);
+        var (queryCode, result) = database.QueryResult("SELECT `version`,`structure`,`content` FROM db_version ORDER BY version DESC, structure DESC, content DESC LIMIT 0,1");
 
         if (queryCode != (int)SQL.ReturnState.Success)
         {
@@ -75,8 +74,7 @@ public class DbVersionChecker
     // Checks if the database version matches asynchronously.
     public async Task<bool> CheckRequiredDbVersionAsync(SQL database, ServerDb serverDb)
     {
-        var result = new DataTable();
-        var queryCode = await database.QueryAsync("SELECT `version`,`structure`,`content` FROM db_version ORDER BY version DESC, structure DESC, content DESC LIMIT 0,1", result);
+        var (queryCode, result) = await database.QueryResultAsync("SELECT `version`,`structure`,`content` FROM db_version ORDER BY version DESC, structure DESC, content DESC LIMIT 0,1");
 
         if (queryCode != (int)SQL.ReturnState.Success)
         {
