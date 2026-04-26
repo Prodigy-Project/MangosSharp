@@ -48,8 +48,10 @@ public enum LogLevel
 // Both with and without exception handling
 public interface IMangosLogger
 {
-    // Minimum log level that will be output (messages below this are filtered)
-    LogLevel MinimumLevel { get; set; }
+    LogLevel MinimumLevel
+    {
+        get; set;
+    }
 
     void Trace(string message);
     void Trace(Exception exception, string message);
