@@ -222,6 +222,9 @@ public class SQL : IDisposable
                         MySQLConn?.Dispose();
                         break;
                     }
+
+                    default:
+                        break;
                 }
             }
             catch
