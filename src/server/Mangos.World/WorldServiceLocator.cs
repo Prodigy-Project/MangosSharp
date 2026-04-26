@@ -22,9 +22,9 @@ using Mangos.Configuration;
 using Mangos.DataStores;
 using Mangos.World.AI;
 using Mangos.World.Auction;
-using Mangos.World.Events;
 using Mangos.World.Battlegrounds;
 using Mangos.World.DataStores;
+using Mangos.World.Events;
 using Mangos.World.Globals;
 using Mangos.World.Gossip;
 using Mangos.World.Handlers;
@@ -47,7 +47,10 @@ namespace Mangos.World;
 
 public sealed class WorldServiceLocator
 {
-    public static IContainer Container { get; set; }
+    public static IContainer Container
+    {
+        get; set;
+    }
 
     public static DataStoreProvider DataStoreProvider => Container.Resolve<DataStoreProvider>();
 

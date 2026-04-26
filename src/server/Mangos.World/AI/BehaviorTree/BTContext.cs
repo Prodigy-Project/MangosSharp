@@ -16,8 +16,8 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using Mangos.World.Objects;
 using System.Collections.Generic;
+using Mangos.World.Objects;
 
 namespace Mangos.World.AI.BehaviorTree;
 
@@ -28,9 +28,18 @@ namespace Mangos.World.AI.BehaviorTree;
 /// </summary>
 public sealed class BTContext
 {
-    public WS_Creatures.CreatureObject Creature { get; }
-    public WS_Creatures_AI.TBaseAI AI { get; }
-    public CooldownManager Cooldowns { get; }
+    public WS_Creatures.CreatureObject Creature
+    {
+        get;
+    }
+    public WS_Creatures_AI.TBaseAI AI
+    {
+        get;
+    }
+    public CooldownManager Cooldowns
+    {
+        get;
+    }
 
     private readonly Dictionary<string, object> _blackboard = new();
 

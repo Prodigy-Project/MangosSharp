@@ -16,9 +16,9 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using Mangos.World.Objects;
 using System;
 using System.Collections.Generic;
+using Mangos.World.Objects;
 
 namespace Mangos.World.AI.Movement;
 
@@ -52,7 +52,9 @@ public sealed class WaypointMovementGenerator : IMovementGenerator
         _currentIndex = 0;
     }
 
-    public void Initialize(WS_Creatures.CreatureObject creature) { }
+    public void Initialize(WS_Creatures.CreatureObject creature)
+    {
+    }
 
     public bool Update(WS_Creatures.CreatureObject creature, int diffMs)
     {
@@ -106,7 +108,9 @@ public sealed class WaypointMovementGenerator : IMovementGenerator
         return false;
     }
 
-    public void Finalize(WS_Creatures.CreatureObject creature) { }
+    public void Finalize(WS_Creatures.CreatureObject creature)
+    {
+    }
 
     public void Reset(WS_Creatures.CreatureObject creature)
     {

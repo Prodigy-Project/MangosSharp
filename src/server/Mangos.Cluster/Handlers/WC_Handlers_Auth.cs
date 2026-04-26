@@ -16,6 +16,11 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Threading;
 using Mangos.Cluster.Globals;
 using Mangos.Cluster.Network;
 using Mangos.Common.Enums.Authentication;
@@ -24,14 +29,9 @@ using Mangos.Common.Enums.Global;
 using Mangos.Common.Enums.Misc;
 using Mangos.Common.Enums.Player;
 using Mangos.Common.Globals;
-using Mangos.MySql;
 using Mangos.Configuration;
+using Mangos.MySql;
 using Microsoft.VisualBasic;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.IO;
-using System.Threading;
 
 namespace Mangos.Cluster.Handlers;
 
@@ -207,16 +207,37 @@ public class WcHandlersAuth
         PacketClass addOnsEnable = new(Opcodes.SMSG_ADDON_INFO);
         for (int i = 0, loopTo1 = addOnsNames.Count - 1; i <= loopTo1; i++)
         {
-            if (File.Exists(string.Format(@"interface\{0}.pub", addOnsNames[i])) && addOnsHashes[i] != 0x1C776D01U)
+            var path = string.Format(@"interface\{0}.pub", addOnsNames[i]);
+            if (File.Exists(path) && addOnsHashes[i] != 0x1C776D01U)
             {
                 // We have hash data
-                addOnsEnable.AddInt8(2);                    // AddOn Type [1-enabled, 0-banned, 2-blizzard]
-                addOnsEnable.AddInt8(1);                    // Unk
-                FileStream fs = new(string.Format(@"interface\{0}.pub", addOnsNames[i]), FileMode.Open, FileAccess.Read, FileShare.Read, 258, FileOptions.SequentialScan);
-                var fb = new byte[257];
-                fs.Read(fb, 0, 257);
+                addOnsEnable.AddInt8(2); // AddOn Type [1-enabled, 0-banned, 2-blizzard]
+                addOnsEnable.AddInt8(1); // Unk
 
-                // NOTE: Read from file
+                using FileStream fs = new(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.SequentialScan);
+
+                var fb = new byte[257];
+
+                int offset = 0;
+                int remaining = fb.Length;
+
+                while (remaining > 0)
+                {
+                    int read = fs.Read(fb, offset, remaining);
+                    if (read == 0)
+                    {
+                        break;
+                    }
+
+                    offset += read;
+                    remaining -= read;
+                }
+
+                if (offset < fb.Length)
+                {
+                    Array.Clear(fb, offset, fb.Length - offset);
+                }
+
                 addOnsEnable.AddByteArray(fb);
                 addOnsEnable.AddInt32(0);
                 addOnsEnable.AddInt8(0);
@@ -224,8 +245,8 @@ public class WcHandlersAuth
             else
             {
                 // We don't have hash data or already sent to client
-                addOnsEnable.AddInt8(2);                    // AddOn Type [1-enabled, 0-banned, 2-blizzard]
-                addOnsEnable.AddInt8(1);                    // Unk
+                addOnsEnable.AddInt8(2); // AddOn Type [1-enabled, 0-banned, 2-blizzard]
+                addOnsEnable.AddInt8(1); // Unk
                 addOnsEnable.AddInt32(0);
                 addOnsEnable.AddInt16(0);
             }

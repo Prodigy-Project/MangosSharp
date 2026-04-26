@@ -16,12 +16,11 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using MySqlConnector;
 using System;
 using System.ComponentModel;
 using System.Data;
 using System.Threading;
-using System.Threading.Tasks;
+using MySql.Data.MySqlClient;
 
 namespace Mangos.MySql;
 
