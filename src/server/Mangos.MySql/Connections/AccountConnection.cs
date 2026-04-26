@@ -20,7 +20,7 @@ using System.Collections.Concurrent;
 using System.Data;
 using Dapper;
 using Mangos.Logging;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 
 namespace Mangos.MySql.Connections;
 

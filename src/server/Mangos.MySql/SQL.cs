@@ -20,7 +20,7 @@ using System;
 using System.ComponentModel;
 using System.Data;
 using System.Threading;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 
 namespace Mangos.MySql;
 
