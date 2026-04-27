@@ -37,22 +37,31 @@ internal sealed class ConnectionFactory
     public AccountConnection ConnectToAccountDataBase()
     {
         var connectionString = mangosConfiguration.AccountDataBaseConnectionString;
-        logger.Debug($"Opening account database connection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("Account database connection string is not configured");
+        }
 
+        logger.Debug("Opening account database connection");
+
+        MySqlConnection? mySqlConnection = null;
         try
         {
-            var mySqlConnection = new MySqlConnection(connectionString);
+            mySqlConnection = new MySqlConnection(connectionString);
             mySqlConnection.Open();
-            
-            // Test the connection with a simple query
-            TestConnection(mySqlConnection);
-            
+
+            if (!TestConnection(mySqlConnection))
+            {
+                throw new InvalidOperationException("Account database connection test failed");
+            }
+
             logger.Information("Account database connection established and tested successfully");
             return new AccountConnection(mySqlConnection, logger);
         }
-        catch (MySqlException ex)
+        catch (Exception ex)
         {
             logger.Error(ex, "Failed to connect to account database");
+            mySqlConnection?.Dispose();
             throw;
         }
     }
@@ -60,27 +69,31 @@ internal sealed class ConnectionFactory
     public CharacterConnection ConnectToCharacterDataBase()
     {
         var connectionString = mangosConfiguration.CharacterDataBaseConnectionString;
-        if (string.IsNullOrEmpty(connectionString))
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException("Character database connection string is not configured");
         }
-        
-        logger.Debug($"Opening character database connection");
 
+        logger.Debug("Opening character database connection");
+
+        MySqlConnection? mySqlConnection = null;
         try
         {
-            var mySqlConnection = new MySqlConnection(connectionString);
+            mySqlConnection = new MySqlConnection(connectionString);
             mySqlConnection.Open();
-            
-            // Test the connection with a simple query
-            TestConnection(mySqlConnection);
-            
+
+            if (!TestConnection(mySqlConnection))
+            {
+                throw new InvalidOperationException("Character database connection test failed");
+            }
+
             logger.Information("Character database connection established and tested successfully");
             return new CharacterConnection(mySqlConnection, logger);
         }
-        catch (MySqlException ex)
+        catch (Exception ex)
         {
             logger.Error(ex, "Failed to connect to character database");
+            mySqlConnection?.Dispose();
             throw;
         }
     }
@@ -88,32 +101,36 @@ internal sealed class ConnectionFactory
     public WorldConnection ConnectToWorldDataBase()
     {
         var connectionString = mangosConfiguration.WorldDataBaseConnectionStrings;
-        if (string.IsNullOrEmpty(connectionString))
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException("World database connection string is not configured");
         }
-        
-        logger.Debug($"Opening world database connection");
 
+        logger.Debug("Opening world database connection");
+
+        MySqlConnection? mySqlConnection = null;
         try
         {
-            var mySqlConnection = new MySqlConnection(connectionString);
+            mySqlConnection = new MySqlConnection(connectionString);
             mySqlConnection.Open();
-            
-            // Test the connection with a simple query
-            TestConnection(mySqlConnection);
-            
+
+            if (!TestConnection(mySqlConnection))
+            {
+                throw new InvalidOperationException("World database connection test failed");
+            }
+
             logger.Information("World database connection established and tested successfully");
             return new WorldConnection(mySqlConnection, logger);
         }
-        catch (MySqlException ex)
+        catch (Exception ex)
         {
             logger.Error(ex, "Failed to connect to world database");
+            mySqlConnection?.Dispose();
             throw;
         }
     }
 
-    private void TestConnection(MySqlConnection connection)
+    private bool TestConnection(MySqlConnection connection)
     {
         try
         {
@@ -125,6 +142,7 @@ internal sealed class ConnectionFactory
             }
 
             logger.Debug("Database connection test passed");
+            return true;
         }
         catch (Exception ex)
         {

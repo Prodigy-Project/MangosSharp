@@ -225,7 +225,7 @@ public class WorldServer
                 AccountDatabase.SQLPort = AccountDBSettings[3];
                 AccountDatabase.SQLUser = AccountDBSettings[0];
                 AccountDatabase.SQLPass = AccountDBSettings[1];
-                AccountDatabase.SQLTypeServer = (SQL.DB_Type)Conversion.Int(Enum.Parse(typeof(SQL.DB_Type), AccountDBSettings[5]));
+                AccountDatabase.SQLTypeServer = (SQL.DB_Type)Conversion.Int(Enum.Parse(typeof(SQL.DB_Type), AccountDBSettings[5], true));
             }
             else
             {
@@ -239,7 +239,7 @@ public class WorldServer
                 CharacterDatabase.SQLPort = CharacterDBSettings[3];
                 CharacterDatabase.SQLUser = CharacterDBSettings[0];
                 CharacterDatabase.SQLPass = CharacterDBSettings[1];
-                CharacterDatabase.SQLTypeServer = (SQL.DB_Type)Conversion.Int(Enum.Parse(typeof(SQL.DB_Type), CharacterDBSettings[5]));
+                CharacterDatabase.SQLTypeServer = (SQL.DB_Type)Conversion.Int(Enum.Parse(typeof(SQL.DB_Type), CharacterDBSettings[5], true));
             }
             else
             {
@@ -253,7 +253,7 @@ public class WorldServer
                 WorldDatabase.SQLPort = WorldDBSettings[3];
                 WorldDatabase.SQLUser = WorldDBSettings[0];
                 WorldDatabase.SQLPass = WorldDBSettings[1];
-                WorldDatabase.SQLTypeServer = (SQL.DB_Type)Conversion.Int(Enum.Parse(typeof(SQL.DB_Type), WorldDBSettings[5]));
+                WorldDatabase.SQLTypeServer = (SQL.DB_Type)Conversion.Int(Enum.Parse(typeof(SQL.DB_Type), WorldDBSettings[5], true));
             }
             else
             {

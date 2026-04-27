@@ -45,7 +45,8 @@ public class SQL : IDisposable
 
     public enum DB_Type
     {
-        MySQL = 0
+        MySQL = 0,
+        MariaDB = 1
     }
 
     public enum ReturnState
@@ -126,6 +127,7 @@ public class SQL : IDisposable
             switch (_sqlType)
             {
                 case DB_Type.MySQL:
+                case DB_Type.MariaDB:
                 {
                     MySQLConn = new MySqlConnection(
                         $"Server={SQLHost};Port={SQLPort};User ID={SQLUser};Password={SQLPass};Database={SQLDBName};Compress=false;Connection Timeout=1;");
@@ -137,7 +139,7 @@ public class SQL : IDisposable
                         return (int)ReturnState.FatalError;
                     }
                     
-                    SQLMessage?.Invoke(EMessages.ID_Message, $"MySQL Connection Opened Successfully [{SQLUser}@{SQLHost}]");
+                    SQLMessage?.Invoke(EMessages.ID_Message, $"{_sqlType} Connection Opened Successfully [{SQLUser}@{SQLHost}]");
                     break;
                 }
 
@@ -148,7 +150,7 @@ public class SQL : IDisposable
         }
         catch (MySqlException ex)
         {
-            SQLMessage?.Invoke(EMessages.ID_Error, $"MySQL Connection Error [{ex.Message}]");
+            SQLMessage?.Invoke(EMessages.ID_Error, $"{_sqlType} Connection Error [{ex.Message}]");
             return (int)ReturnState.FatalError;
         }
 
@@ -164,6 +166,7 @@ public class SQL : IDisposable
             switch (_sqlType)
             {
                 case DB_Type.MySQL:
+                case DB_Type.MariaDB:
                 {
                     MySQLConn?.Close();
                     MySQLConn?.Dispose();
@@ -175,15 +178,15 @@ public class SQL : IDisposable
                         // Test the restarted connection
                         if (!TestConnection())
                         {
-                            SQLMessage?.Invoke(EMessages.ID_Error, "MySQL Connection restart failed: test failed");
+                            SQLMessage?.Invoke(EMessages.ID_Error, $"{_sqlType} Connection restart failed: test failed");
                             return;
                         }
                         
-                        SQLMessage?.Invoke(EMessages.ID_Message, "MySQL Connection restarted!");
+                        SQLMessage?.Invoke(EMessages.ID_Message, $"{_sqlType} Connection restarted!");
                     }
                     else
                     {
-                        SQLMessage?.Invoke(EMessages.ID_Error, "Unable to restart MySQL connection.");
+                        SQLMessage?.Invoke(EMessages.ID_Error, $"Unable to restart {_sqlType} connection.");
                     }
 
                     break;
@@ -196,7 +199,7 @@ public class SQL : IDisposable
         }
         catch (MySqlException ex)
         {
-            SQLMessage?.Invoke(EMessages.ID_Error, $"MySQL Connection Error [{ex.Message}]");
+            SQLMessage?.Invoke(EMessages.ID_Error, $"{_sqlType} Connection Error [{ex.Message}]");
         }
     }
 
@@ -216,6 +219,7 @@ public class SQL : IDisposable
                 switch (_sqlType)
                 {
                     case DB_Type.MySQL:
+                    case DB_Type.MariaDB:
                     {
                         MySQLConn?.Close();
                         MySQLConn?.Dispose();
