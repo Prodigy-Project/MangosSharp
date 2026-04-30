@@ -21,9 +21,12 @@ using Mangos.Cluster;
 using Mangos.Cluster.Interop.Dispatchers;
 using Mangos.Cluster.Interop.Protocol;
 using Mangos.Cluster.Network;
+using Mangos.Common.Enums.Global;
+using Mangos.Common.Globals;
 using Mangos.Configuration;
 using Mangos.Logging;
 using Mangos.MySql;
+using Mangos.MySql.Connections;
 using Mangos.Tcp;
 using WorldCluster;
 
@@ -50,6 +53,48 @@ logger.Trace(@"| |\/| / _` | .` | (_ | (_) \__ \   Vanilla Wow");
 logger.Trace(@"|_|  |_\__,_|_|\_|\___|\___/|___/              ");
 logger.Trace("                                                ");
 logger.Trace("Website / Forum / Support: https://www.getmangos.eu/");
+
+// Check database version for account database
+using (var scope = container.BeginLifetimeScope())
+{
+    var accountConnection = scope.Resolve<AccountConnection>();
+    var globalConstants = scope.Resolve<MangosGlobalConstants>();
+    var dbVersionChecker = new DbVersionChecker(logger, globalConstants);
+    
+    if (!dbVersionChecker.CheckRequiredDbVersion(accountConnection.MySqlConnection, "account", ServerDb.Realm))
+    {
+        logger.Error("Database version check failed. Exiting...");
+        Environment.Exit(1);
+    }
+}
+
+// Check database version for character database
+using (var scope = container.BeginLifetimeScope())
+{
+    var characterConnection = scope.Resolve<CharacterConnection>();
+    var globalConstants = scope.Resolve<MangosGlobalConstants>();
+    var dbVersionChecker = new DbVersionChecker(logger, globalConstants);
+
+    if (!dbVersionChecker.CheckRequiredDbVersion(characterConnection.MySqlConnection, "character", ServerDb.Character))
+    {
+        logger.Error("Database version check failed. Exiting...");
+        Environment.Exit(1);
+    }
+}
+
+// Check database version for world database
+using (var scope = container.BeginLifetimeScope())
+{
+    var worldConnection = scope.Resolve<WorldConnection>();
+    var globalConstants = scope.Resolve<MangosGlobalConstants>();
+    var dbVersionChecker = new DbVersionChecker(logger, globalConstants);
+
+    if (!dbVersionChecker.CheckRequiredDbVersion(worldConnection.MySqlConnection, "world", ServerDb.World))
+    {
+        logger.Error("Database version check failed. Exiting...");
+        Environment.Exit(1);
+    }
+}
 
 logger.Information("Starting legacy cluster server");
 await legacyWorldCluster.StartAsync();

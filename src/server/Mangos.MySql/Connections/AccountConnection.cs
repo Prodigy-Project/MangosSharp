@@ -24,12 +24,14 @@ using MySqlConnector;
 
 namespace Mangos.MySql.Connections;
 
-internal sealed class AccountConnection : IDisposable
+public sealed class AccountConnection : IDisposable
 {
     private readonly MySqlConnection mySqlConnection;
     private readonly IMangosLogger logger;
     private readonly SemaphoreSlim connectionLock = new(1, 1);
     private readonly ConcurrentDictionary<object, string> scripts = new();
+
+    public MySqlConnection MySqlConnection => mySqlConnection;
 
     public AccountConnection(MySqlConnection mySqlConnection, IMangosLogger logger)
     {

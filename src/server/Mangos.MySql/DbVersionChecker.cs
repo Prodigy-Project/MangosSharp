@@ -21,6 +21,7 @@ using System.Data;
 using Mangos.Common.Enums.Global;
 using Mangos.Common.Globals;
 using Mangos.Logging;
+using MySqlConnector;
 
 namespace Mangos.MySql;
 
@@ -36,7 +37,7 @@ public class DbVersionChecker
 
     public DbVersionChecker(IMangosLogger logger, MangosGlobalConstants mangosGlobalConstants)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logger = logger; // Allow null for backward compatibility
         _globalConstants = mangosGlobalConstants ?? throw new ArgumentNullException(nameof(mangosGlobalConstants));
     }
 
@@ -70,31 +71,40 @@ public class DbVersionChecker
         return ValidateVersion(database.SQLDBName, dbVersion, expectedVersion);
     }
 
-    // Checks if the database version matches asynchronously.
-    public async Task<bool> CheckRequiredDbVersionAsync(SQL database, ServerDb serverDb)
+    // Checks if the database version matches the required core version using a MySqlConnection.
+    // connection: The MySqlConnection to use for the check.
+    // databaseName: The name of the database being checked.
+    // serverDb: The type of database being checked.
+    // Returns: True if version is compatible or content mismatch (warnings), false if version mismatch (fatal).
+    public bool CheckRequiredDbVersion(MySqlConnection connection, string databaseName, ServerDb serverDb)
     {
-        var (queryCode, result) = await database.QueryResultAsync("SELECT `version`,`structure`,`content` FROM db_version ORDER BY version DESC, structure DESC, content DESC LIMIT 0,1");
-
-        if (queryCode != (int)SQL.ReturnState.Success)
+        try
         {
-            LogDatabaseCheckFailure(database.SQLDBName, "Failed to query database version");
+            using var command = new MySqlCommand("SELECT `version`,`structure`,`content` FROM db_version ORDER BY version DESC, structure DESC, content DESC LIMIT 0,1", connection);
+            using var adapter = new MySqlDataAdapter(command);
+            var result = new DataTable();
+            adapter.Fill(result);
+
+            var expectedVersion = GetExpectedVersion(serverDb);
+            if (expectedVersion is null)
+            {
+                return false;
+            }
+
+            if (result.Rows.Count == 0)
+            {
+                LogMissingVersionTable(databaseName, expectedVersion);
+                return false;
+            }
+
+            var dbVersion = ExtractVersionInfo(result);
+            return ValidateVersion(databaseName, dbVersion, expectedVersion);
+        }
+        catch (Exception ex)
+        {
+            LogDatabaseCheckFailure(databaseName, $"Failed to query database version: {ex.Message}");
             return false;
         }
-
-        var expectedVersion = GetExpectedVersion(serverDb);
-        if (expectedVersion is null)
-        {
-            return false;
-        }
-
-        if (result.Rows.Count == 0)
-        {
-            LogMissingVersionTable(database.SQLDBName, expectedVersion);
-            return false;
-        }
-
-        var dbVersion = ExtractVersionInfo(result);
-        return ValidateVersion(database.SQLDBName, dbVersion, expectedVersion);
     }
 
     // Gets the expected version for the given server database type.
@@ -134,7 +144,7 @@ public class DbVersionChecker
         // Perfect match
         if (actual.Version == expected.Version &&  actual.Structure == expected.Structure && actual.Content == expected.Content)
         {
-            _logger.Trace($"[{DateTime.Now:hh:mm:ss}] Db version matched");
+            _logger.Database($"Database version matched for '{dbName}'");
             return true;
         }
 
@@ -146,45 +156,45 @@ public class DbVersionChecker
             _logger.Warning("--------------------------------------------------------------");
             _logger.Warning($"Your database '{dbName}' requires updating.");
             _logger.Warning($"You have: Rev{actual.Version}.{actual.Structure}.{actual.Content}, " +
-                             $"however the core expects Rev{expected.Version}.{expected.Structure}.{expected.Content}");
+                         $"however the core expects Rev{expected.Version}.{expected.Structure}.{expected.Content}");
             _logger.Warning("The server will run, but you may be missing some database fixes");
             return true;
         }
 
         // Version or structure mismatch (fatal)
-        _logger.Error("--------------------------------------------------------------");
-        _logger.Error("-- FATAL ERROR: DATABASE VERSION MISMATCH                   --");
-        _logger.Error("--------------------------------------------------------------");
-        _logger.Error($"Your database '{dbName}' requires updating.");
-        _logger.Error($"You have: Rev{actual.Version}.{actual.Structure}.{actual.Content}, " +
-                      $"but the core requires Rev{expected.Version}.{expected.Structure}.{expected.Content}");
-        _logger.Error("The server is unable to run until the required updates are applied.");
-        _logger.Error("--------------------------------------------------------------");
-        _logger.Error($"Please apply all updates after Rev{expected.Version}.{expected.Structure}.{expected.Content}");
-        _logger.Error("These updates are located in the sql/updates folder.");
-        _logger.Error("--------------------------------------------------------------");
+        _logger.Critical("--------------------------------------------------------------");
+        _logger.Critical("-- CRITICAL ERROR: DATABASE VERSION MISMATCH                --");
+        _logger.Critical("--------------------------------------------------------------");
+        _logger.Critical($"Your database '{dbName}' requires updating.");
+        _logger.Critical($"You have: Rev{actual.Version}.{actual.Structure}.{actual.Content}, " +
+                         $"but the core requires Rev{expected.Version}.{expected.Structure}.{expected.Content}");
+        _logger.Critical("The server is unable to run until the required updates are applied.");
+        _logger.Critical("--------------------------------------------------------------");
+        _logger.Critical($"Please apply all updates after Rev{expected.Version}.{expected.Structure}.{expected.Content}");
+        _logger.Critical("These updates are located in the sql/updates folder.");
+        _logger.Critical("--------------------------------------------------------------");
         return false;
     }
 
     // Logs when the database version check fails.
     private void LogDatabaseCheckFailure(string dbName, string reason)
     {
-        _logger.Error("--------------------------------------------------------------");
-        _logger.Error("-- DATABASE VERSION CHECK FAILURE                           --");
-        _logger.Error("--------------------------------------------------------------");
-        _logger.Error($"Failed to check version for database '{dbName}': {reason}");
-        _logger.Error("--------------------------------------------------------------");
+        _logger.Failed("--------------------------------------------------------------");
+        _logger.Failed("-- DATABASE VERSION CHECK FAILURE                           --");
+        _logger.Failed("--------------------------------------------------------------");
+        _logger.Failed($"Failed to check version for database '{dbName}': {reason}");
+        _logger.Failed("--------------------------------------------------------------");
     }
 
     // Logs when the db_version table is missing.
     private void LogMissingVersionTable(string dbName, DbVersionInfo expected)
     {
-        _logger.Error("--------------------------------------------------------------");
-        _logger.Error("-- MISSING VERSION TABLE                                    --");
-        _logger.Error("--------------------------------------------------------------");
-        _logger.Error($"The table 'db_version' is missing in database '{dbName}'");
-        _logger.Error("This database is likely not properly set up or is too old.");
-        _logger.Error($"The core requires database schema Rev{expected.Version}.{expected.Structure}.{expected.Content}");
-        _logger.Error("--------------------------------------------------------------");
+        _logger.Alert("--------------------------------------------------------------");
+        _logger.Alert("-- MISSING VERSION TABLE                                    --");
+        _logger.Alert("--------------------------------------------------------------");
+        _logger.Alert($"The table 'db_version' is missing in database '{dbName}'");
+        _logger.Alert("This database is likely not properly set up or is too old.");
+        _logger.Alert($"The core requires database schema Rev{expected.Version}.{expected.Structure}.{expected.Content}");
+        _logger.Alert("--------------------------------------------------------------");
     }
 }

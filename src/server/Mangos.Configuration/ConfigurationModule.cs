@@ -17,6 +17,7 @@
 //
 
 using Autofac;
+using Mangos.Common.Globals;
 
 namespace Mangos.Configuration;
 
@@ -25,5 +26,6 @@ public sealed class ConfigurationModule : Module
     protected override void Load(ContainerBuilder builder)
     {
         builder.Register(context => new ConfigurationLoader().GetMangosConfiguration()).SingleInstance();
+        builder.RegisterType<MangosGlobalConstants>().As<MangosGlobalConstants>().SingleInstance();
     }
 }
