@@ -343,41 +343,13 @@ public class SQL : IDisposable
     [Obsolete("Legacy method. Use QueryResult instead to avoid ref parameters.")]
     public int Query(string sqlquery, ref DataTable result)
     {
-        if (string.IsNullOrWhiteSpace(sqlquery))
+        var (status, data) = QueryResult(sqlquery);
+        if (status == (int)ReturnState.Success)
         {
-            throw new ArgumentException("Query cannot be empty.", nameof(sqlquery));
+            result = data;
         }
 
-        try
-        {
-            EnsureConnectionOpen();
-
-            _connectionLock.Wait();
-            try
-            {
-                using var command = new MySqlCommand(sqlquery, MySQLConn);
-                using var adapter = new MySqlDataAdapter(command);
-                result ??= new DataTable();
-                result.Clear();
-                adapter.Fill(result);
-            }
-            finally
-            {
-                _connectionLock.Release();
-            }
-
-            return (int)ReturnState.Success;
-        }
-        catch (MySqlException ex)
-        {
-            SQLMessage?.Invoke(EMessages.ID_Error, $"Error executing query: {ex.Message}");
-            return (int)ReturnState.FatalError;
-        }
-        catch (Exception ex)
-        {
-            SQLMessage?.Invoke(EMessages.ID_Error, $"Unexpected error: {ex.Message}");
-            return (int)ReturnState.FatalError;
-        }
+        return status;
     }
 
     // Executes a SELECT query asynchronously and returns the result.
