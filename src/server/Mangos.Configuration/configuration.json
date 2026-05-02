@@ -8,18 +8,18 @@
     "ClusterListenAddress": "127.0.0.1",
     "ClusterListenPort": 50001,
     "ServerPlayerLimit": 100,
-    "AccountDatabase": "root;rootpass;localhost;3306;mangosVBaccounts;MySQL",
-    "CharacterDatabase": "root;rootpass;localhost;3306;mangosVBcharacters;MySQL",
-    "WorldDatabase": "root;rootpass;localhost;3306;mangosVBworld;MySQL"
+    "AccountDatabase": "root;rootpass;localhost;3306;mangosVBaccounts;MariaDB",
+    "CharacterDatabase": "root;rootpass;localhost;3306;mangosVBcharacters;MariaDB",
+    "WorldDatabase": "root;rootpass;localhost;3306;mangosVBworld;MariaDB"
   },
   "World": {
     "ClusterConnectHost": "127.0.0.1",
     "ClusterConnectPort": 50001,
     "LocalConnectHost": "127.0.0.1",
     "LocalConnectPort": 50002,
-    "AccountDatabase": "root;rootpass;localhost;3306;mangosVBaccounts;MySQL",
-    "CharacterDatabase": "root;rootpass;localhost;3306;mangosVBcharacters;MySQL",
-    "WorldDatabase": "root;rootpass;localhost;3306;mangosVBworld;MySQL",
+    "AccountDatabase": "root;rootpass;localhost;3306;mangosVBaccounts;MariaDB",
+    "CharacterDatabase": "root;rootpass;localhost;3306;mangosVBcharacters;MariaDB",
+    "WorldDatabase": "root;rootpass;localhost;3306;mangosVBworld;MariaDB",
     "Maps": [ 1, 0 ],
     "ScriptsCompiler": [
       "System.dll",

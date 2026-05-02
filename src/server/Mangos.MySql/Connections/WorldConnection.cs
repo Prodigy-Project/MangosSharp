@@ -16,15 +16,15 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using System.Collections.Concurrent;
-using System.Data;
 using Dapper;
 using Mangos.Logging;
 using MySqlConnector;
+using System.Collections.Concurrent;
+using System.Data;
 
 namespace Mangos.MySql.Connections;
 
-public sealed class AccountConnection : IDisposable
+public sealed class WorldConnection : IDisposable
 {
     private readonly MySqlConnection mySqlConnection;
     private readonly IMangosLogger logger;
@@ -33,7 +33,7 @@ public sealed class AccountConnection : IDisposable
 
     public MySqlConnection MySqlConnection => mySqlConnection;
 
-    public AccountConnection(MySqlConnection mySqlConnection, IMangosLogger logger)
+    public WorldConnection(MySqlConnection mySqlConnection, IMangosLogger logger)
     {
         this.mySqlConnection = mySqlConnection;
         this.logger = logger;
@@ -90,7 +90,7 @@ public sealed class AccountConnection : IDisposable
         }
         catch (MySqlException ex)
         {
-            logger.Error(ex, $"Database execute failed for {target.GetType().Name}");
+            logger.Error(ex, $"Database command failed for {target.GetType().Name}");
             throw;
         }
         finally
@@ -101,29 +101,29 @@ public sealed class AccountConnection : IDisposable
 
     private async Task EnsureConnectionOpenAsync()
     {
-        if (mySqlConnection.State == ConnectionState.Broken || mySqlConnection.State == ConnectionState.Closed)
+        if (mySqlConnection.State != ConnectionState.Open)
         {
-            logger.Warning("Database connection was closed, reconnecting...");
+            logger.Debug("Opening world database connection");
             await mySqlConnection.OpenAsync();
         }
     }
 
     private string GetSqlScriptFromResources(object target)
     {
-        var type = target.GetType();
-        using var stream = type.Assembly.GetManifestResourceStream($"{type.FullName}.sql");
+        var resourceName = $"Mangos.MySql.SqlScripts.{target.GetType().Name}.sql";
+        using var stream = typeof(WorldConnection).Assembly.GetManifestResourceStream(resourceName);
         if (stream == null)
         {
-            throw new FileNotFoundException($"Unable to get sql script for {type.FullName}");
+            throw new InvalidOperationException($"SQL script resource '{resourceName}' not found for {target.GetType().Name}");
         }
 
-        using var streamReader = new StreamReader(stream);
-        return streamReader.ReadToEnd();
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 
     public void Dispose()
     {
-        connectionLock.Dispose();
         mySqlConnection.Dispose();
+        connectionLock.Dispose();
     }
 }

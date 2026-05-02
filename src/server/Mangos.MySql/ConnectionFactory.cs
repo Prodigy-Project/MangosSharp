@@ -19,7 +19,7 @@
 using Mangos.Configuration;
 using Mangos.Logging;
 using Mangos.MySql.Connections;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 
 namespace Mangos.MySql;
 
@@ -37,18 +37,116 @@ internal sealed class ConnectionFactory
     public AccountConnection ConnectToAccountDataBase()
     {
         var connectionString = mangosConfiguration.AccountDataBaseConnectionString;
-        logger.Debug($"Opening account database connection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("Account database connection string is not configured");
+        }
 
+        logger.Debug("Opening account database connection");
+
+        MySqlConnection? mySqlConnection = null;
         try
         {
-            var mySqlConnection = new MySqlConnection(connectionString);
+            mySqlConnection = new MySqlConnection(connectionString);
             mySqlConnection.Open();
-            logger.Information("Account database connection established");
+
+            if (!TestConnection(mySqlConnection))
+            {
+                throw new InvalidOperationException("Account database connection test failed");
+            }
+
+            logger.Information("Account database connection established and tested successfully");
             return new AccountConnection(mySqlConnection, logger);
         }
-        catch (MySqlException ex)
+        catch (Exception ex)
         {
             logger.Error(ex, "Failed to connect to account database");
+            mySqlConnection?.Dispose();
+            throw;
+        }
+    }
+
+    public CharacterConnection ConnectToCharacterDataBase()
+    {
+        var connectionString = mangosConfiguration.CharacterDataBaseConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("Character database connection string is not configured");
+        }
+
+        logger.Debug("Opening character database connection");
+
+        MySqlConnection? mySqlConnection = null;
+        try
+        {
+            mySqlConnection = new MySqlConnection(connectionString);
+            mySqlConnection.Open();
+
+            if (!TestConnection(mySqlConnection))
+            {
+                throw new InvalidOperationException("Character database connection test failed");
+            }
+
+            logger.Information("Character database connection established and tested successfully");
+            return new CharacterConnection(mySqlConnection, logger);
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex, "Failed to connect to character database");
+            mySqlConnection?.Dispose();
+            throw;
+        }
+    }
+
+    public WorldConnection ConnectToWorldDataBase()
+    {
+        var connectionString = mangosConfiguration.WorldDataBaseConnectionStrings;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("World database connection string is not configured");
+        }
+
+        logger.Debug("Opening world database connection");
+
+        MySqlConnection? mySqlConnection = null;
+        try
+        {
+            mySqlConnection = new MySqlConnection(connectionString);
+            mySqlConnection.Open();
+
+            if (!TestConnection(mySqlConnection))
+            {
+                throw new InvalidOperationException("World database connection test failed");
+            }
+
+            logger.Information("World database connection established and tested successfully");
+            return new WorldConnection(mySqlConnection, logger);
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex, "Failed to connect to world database");
+            mySqlConnection?.Dispose();
+            throw;
+        }
+    }
+
+    private bool TestConnection(MySqlConnection connection)
+    {
+        try
+        {
+            using var command = new MySqlCommand("SELECT 1", connection);
+            var result = command.ExecuteScalar();
+            if (result == null || Convert.ToInt32(result) != 1)
+            {
+                throw new InvalidOperationException("Connection test failed: unexpected result from test query");
+            }
+
+            logger.Debug("Database connection test passed");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex, "Database connection test failed");
             throw;
         }
     }

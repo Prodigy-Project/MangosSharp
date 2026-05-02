@@ -73,7 +73,7 @@ public class LegacyWorldCluster
             GetAccountDatabase().SQLPort = accountDbSettings[3];
             GetAccountDatabase().SQLUser = accountDbSettings[0];
             GetAccountDatabase().SQLPass = accountDbSettings[1];
-            GetAccountDatabase().SQLTypeServer = (SQL.DB_Type)Enum.Parse(typeof(SQL.DB_Type), accountDbSettings[5]);
+            GetAccountDatabase().SQLTypeServer = (SQL.DB_Type)Enum.Parse(typeof(SQL.DB_Type), accountDbSettings[5], true);
         }
 
         var characterDbSettings = Strings.Split(mangosConfiguration.Cluster.CharacterDatabase, ";");
@@ -88,7 +88,7 @@ public class LegacyWorldCluster
             GetCharacterDatabase().SQLPort = characterDbSettings[3];
             GetCharacterDatabase().SQLUser = characterDbSettings[0];
             GetCharacterDatabase().SQLPass = characterDbSettings[1];
-            GetCharacterDatabase().SQLTypeServer = (SQL.DB_Type)Enum.Parse(typeof(SQL.DB_Type), characterDbSettings[5]);
+            GetCharacterDatabase().SQLTypeServer = (SQL.DB_Type)Enum.Parse(typeof(SQL.DB_Type), characterDbSettings[5], true);
         }
 
         var worldDbSettings = Strings.Split(mangosConfiguration.Cluster.WorldDatabase, ";");
@@ -103,7 +103,7 @@ public class LegacyWorldCluster
             GetWorldDatabase().SQLPort = worldDbSettings[3];
             GetWorldDatabase().SQLUser = worldDbSettings[0];
             GetWorldDatabase().SQLPass = worldDbSettings[1];
-            GetWorldDatabase().SQLTypeServer = (SQL.DB_Type)Enum.Parse(typeof(SQL.DB_Type), worldDbSettings[5]);
+            GetWorldDatabase().SQLTypeServer = (SQL.DB_Type)Enum.Parse(typeof(SQL.DB_Type), worldDbSettings[5], true);
         }
     }
 

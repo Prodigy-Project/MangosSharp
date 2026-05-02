@@ -21,28 +21,71 @@ using System.Data;
 
 namespace Mangos.MySql;
 
+// Extension methods for converting DataRow values to typed values with proper null handling.
 public static class SqlExtensions
 {
+    // Converts a DataRow column value to the specified type.
+    // T: The target type.
+    // row: The DataRow to read from.
+    // column: The column index.
+    // Returns: The converted value.
+    // Throws ArgumentNullException when row is null or column value is null.
     public static T As<T>(this DataRow row, int column)
     {
-        return row == null || row[column] == null ? throw new Exception("Null data row.") : (T)Convert.ChangeType(row[column], typeof(T));
+        return row is null
+            ? throw new ArgumentNullException(nameof(row), "DataRow cannot be null.")
+            : row[column] is null or DBNull
+                ? throw new InvalidOperationException($"Column at index {column} contains null value.")
+                : (T)Convert.ChangeType(row[column], typeof(T));
     }
 
+    // Converts a DataRow column value to the specified type.
+    // T: The target type.
+    // row: The DataRow to read from.
+    // field: The column name.
+    // Returns: The converted value.
+    // Throws ArgumentNullException when row is null or field value is null.
     public static T As<T>(this DataRow row, string field)
     {
-        return row == null || row[field] == null ? throw new Exception("Null data row.") : (T)Convert.ChangeType(row[field], typeof(T));
-    }
-
-    /// <typeparam name="T1">Cast1</typeparam>
-    /// <typeparam name="T2">Cast2</typeparam>
-    public static T2 As<T1, T2>(this DataRow row, string field)
-    {
-        if (row == null || row[field] == null)
+        if (row is null)
         {
-            throw new Exception("Null data row.");
+            throw new ArgumentNullException(nameof(row), "DataRow cannot be null.");
         }
 
-        T1 t1 = (T1)Convert.ChangeType(row[field], typeof(T1));
+        if (!row.Table.Columns.Contains(field))
+        {
+            throw new ArgumentException($"Column '{field}' does not exist in the DataRow.", nameof(field));
+        }
+
+        return row[field] is null or DBNull
+            ? throw new InvalidOperationException($"Column '{field}' contains null value.") : (T)Convert.ChangeType(row[field], typeof(T));
+    }
+
+    // Converts a DataRow column value from one type to another.
+    // T1: The intermediate type.
+    // T2: The target type.
+    // row: The DataRow to read from.
+    // field: The column name.
+    // Returns: The converted value.
+    // Throws ArgumentNullException when row is null or field value is null.
+    public static T2 As<T1, T2>(this DataRow row, string field)
+    {
+        if (row is null)
+        {
+            throw new ArgumentNullException(nameof(row), "DataRow cannot be null.");
+        }
+
+        if (!row.Table.Columns.Contains(field))
+        {
+            throw new ArgumentException($"Column '{field}' does not exist in the DataRow.", nameof(field));
+        }
+
+        if (row[field] is null or DBNull)
+        {
+            throw new InvalidOperationException($"Column '{field}' contains null value.");
+        }
+
+        var t1 = (T1)Convert.ChangeType(row[field], typeof(T1));
         return (T2)Convert.ChangeType(t1, typeof(T2));
     }
 }
