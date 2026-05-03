@@ -62,20 +62,11 @@ internal sealed class ConfigurationLoader
 
     private static void ApplyEnvironmentOverrides(JsonNode root)
     {
-        OverrideString(root, "AccountDataBaseConnectionString", $"{EnvironmentVariablePrefix}ACCOUNT_DB");
+        OverrideString(root, "Realm", "AccountDatabase", $"{EnvironmentVariablePrefix}ACCOUNT_DB");
         OverrideString(root, "Realm", "RealmServerEndpoint", $"{EnvironmentVariablePrefix}REALM_ENDPOINT");
         OverrideString(root, "Cluster", "ClusterServerEndpoint", $"{EnvironmentVariablePrefix}CLUSTER_ENDPOINT");
         OverrideString(root, "Cluster", "ClusterListenAddress", $"{EnvironmentVariablePrefix}CLUSTER_LISTEN_ADDRESS");
         OverrideString(root, "World", "ClusterConnectHost", $"{EnvironmentVariablePrefix}WORLD_CLUSTER_HOST");
-    }
-
-    private static void OverrideString(JsonNode root, string key, string envVar)
-    {
-        var value = Environment.GetEnvironmentVariable(envVar);
-        if (value != null)
-        {
-            root[key] = value;
-        }
     }
 
     private static void OverrideString(JsonNode root, string section, string key, string envVar)
@@ -91,29 +82,45 @@ internal sealed class ConfigurationLoader
     {
         var errors = new List<string>();
 
-        if (string.IsNullOrWhiteSpace(config.AccountDataBaseConnectionString))
-            errors.Add("AccountDataBaseConnectionString is required");
+        if (string.IsNullOrWhiteSpace(config.Realm.AccountDatabase))
+        {
+            errors.Add("Realm.AccountDatabase is required");
+        }
 
         if (string.IsNullOrWhiteSpace(config.Realm.RealmServerEndpoint))
+        {
             errors.Add("Realm.RealmServerEndpoint is required");
+        }
 
         if (string.IsNullOrWhiteSpace(config.Cluster.ClusterServerEndpoint))
+        {
             errors.Add("Cluster.ClusterServerEndpoint is required");
+        }
 
         if (config.Cluster.ClusterListenPort <= 0 || config.Cluster.ClusterListenPort > 65535)
+        {
             errors.Add($"Cluster.ClusterListenPort must be between 1 and 65535, got {config.Cluster.ClusterListenPort}");
+        }
 
         if (config.Cluster.ServerPlayerLimit < 0)
+        {
             errors.Add("Cluster.ServerPlayerLimit cannot be negative");
+        }
 
         if (config.World.ClusterConnectPort <= 0 || config.World.ClusterConnectPort > 65535)
+        {
             errors.Add($"World.ClusterConnectPort must be between 1 and 65535, got {config.World.ClusterConnectPort}");
+        }
 
         if (config.World.XPRate < 0)
+        {
             errors.Add("World.XPRate cannot be negative");
+        }
 
         if (config.World.MapResolution < 64 || config.World.MapResolution > 256)
+        {
             errors.Add($"World.MapResolution must be between 64 and 256, got {config.World.MapResolution}");
+        }
 
         if (errors.Count > 0)
         {

@@ -36,9 +36,9 @@ public class MangosGlobalConstants
     public readonly int RevisionDbCharactersStructure;
     public readonly int RevisionDbCharactersContent;
 
-    public readonly int RevisionDbMangosVersion = 21;
-    public readonly int RevisionDbMangosStructure = 7;
-    public readonly int RevisionDbMangosContent = 77;
+    public readonly int RevisionDbMangosVersion = 1;
+    public readonly int RevisionDbMangosStructure;
+    public readonly int RevisionDbMangosContent;
 
     public readonly int RevisionDbRealmVersion = 21;
     public readonly int RevisionDbRealmStructure = 2;
