@@ -1,25 +1,25 @@
 ﻿{
   "Realm": {
     "RealmServerEndpoint": "127.0.0.1:3724",
-    "AccountDatabase": "root;rootpass;localhost;3306;mangosVBaccounts;MariaDB"
+    "AccountDatabase": "root;rootpass;localhost;3306;mangosSharpaccounts;MariaDB"
   },
   "Cluster": {
     "ClusterServerEndpoint": "127.0.0.1:8085",
     "ClusterListenAddress": "127.0.0.1",
     "ClusterListenPort": 50001,
     "ServerPlayerLimit": 100,
-    "AccountDatabase": "root;rootpass;localhost;3306;mangosVBaccounts;MariaDB",
-    "CharacterDatabase": "root;rootpass;localhost;3306;mangosVBcharacters;MariaDB",
-    "WorldDatabase": "root;rootpass;localhost;3306;mangosVBworld;MariaDB"
+    "AccountDatabase": "root;rootpass;localhost;3306;mangosSharpaccounts;MariaDB",
+    "CharacterDatabase": "root;rootpass;localhost;3306;mangosSharpcharacters;MariaDB",
+    "WorldDatabase": "root;rootpass;localhost;3306;mangosSharpworld;MariaDB"
   },
   "World": {
     "ClusterConnectHost": "127.0.0.1",
     "ClusterConnectPort": 50001,
     "LocalConnectHost": "127.0.0.1",
     "LocalConnectPort": 50002,
-    "AccountDatabase": "root;rootpass;localhost;3306;mangosVBaccounts;MariaDB",
-    "CharacterDatabase": "root;rootpass;localhost;3306;mangosVBcharacters;MariaDB",
-    "WorldDatabase": "root;rootpass;localhost;3306;mangosVBworld;MariaDB",
+    "AccountDatabase": "root;rootpass;localhost;3306;mangosSharpaccounts;MariaDB",
+    "CharacterDatabase": "root;rootpass;localhost;3306;mangosSharpcharacters;MariaDB",
+    "WorldDatabase": "root;rootpass;localhost;3306;mangosSharpworld;MariaDB",
     "Maps": [ 1, 0 ],
     "ScriptsCompiler": [
       "System.dll",
