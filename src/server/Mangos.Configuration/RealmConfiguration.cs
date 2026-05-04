@@ -24,4 +24,9 @@ public sealed class RealmConfiguration
     {
         get; init;
     }
+
+    public required string AccountDatabase
+    {
+        get; init;
+    }
 }

@@ -36,7 +36,7 @@ internal sealed class ConnectionFactory
 
     public AccountConnection ConnectToAccountDataBase()
     {
-        var connectionString = mangosConfiguration.AccountDataBaseConnectionString;
+        var connectionString = BuildConnectionString(mangosConfiguration.Realm.AccountDatabase, "Account");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException("Account database connection string is not configured");
@@ -68,7 +68,7 @@ internal sealed class ConnectionFactory
 
     public CharacterConnection ConnectToCharacterDataBase()
     {
-        var connectionString = mangosConfiguration.CharacterDataBaseConnectionString;
+        var connectionString = BuildConnectionString(mangosConfiguration.Cluster.CharacterDatabase, "Character");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException("Character database connection string is not configured");
@@ -100,7 +100,7 @@ internal sealed class ConnectionFactory
 
     public WorldConnection ConnectToWorldDataBase()
     {
-        var connectionString = mangosConfiguration.WorldDataBaseConnectionStrings;
+        var connectionString = BuildConnectionString(mangosConfiguration.Cluster.WorldDatabase, "World");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException("World database connection string is not configured");
@@ -128,6 +128,25 @@ internal sealed class ConnectionFactory
             mySqlConnection?.Dispose();
             throw;
         }
+    }
+
+    private string BuildConnectionString(string databaseConfig, string databaseName)
+    {
+        // Format: user;pass;host;port;db;type
+        var parts = databaseConfig.Split(';');
+        if (parts.Length < 5)
+        {
+            logger.Error($"Invalid {databaseName} database configuration format. Expected: user;pass;host;port;db;type");
+            return string.Empty;
+        }
+
+        var user = parts[0];
+        var pass = parts[1];
+        var host = parts[2];
+        var port = parts[3];
+        var db = parts[4];
+
+        return $"Server={host};Port={port};User ID={user};Password={pass};Database={db};Compress=false;Connection Timeout=5;";
     }
 
     private bool TestConnection(MySqlConnection connection)

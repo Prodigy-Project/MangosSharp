@@ -30,6 +30,8 @@ public sealed class MySqlModule : Module
     {
         builder.RegisterType<ConnectionFactory>().SingleInstance();
         builder.Register(context => context.Resolve<ConnectionFactory>().ConnectToAccountDataBase()).SingleInstance();
+        builder.Register(context => context.Resolve<ConnectionFactory>().ConnectToCharacterDataBase()).SingleInstance();
+        builder.Register(context => context.Resolve<ConnectionFactory>().ConnectToWorldDataBase()).SingleInstance();
 
         RegisterQueries(builder);
     }
